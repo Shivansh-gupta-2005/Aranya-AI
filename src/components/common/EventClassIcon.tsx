@@ -16,9 +16,9 @@ export const EventClassIcon: React.FC<EventClassIconProps> = ({ eventClass, size
       case 'vehicle': return <Car size={size} color={color} />;
       case 'wildlife': return <Bird size={size} color={color} />;
       case 'background': return <CloudRain size={size} color={color} />;
-      case 'gunshot': return <Crosshair size={size} color={color} />;
+      case 'gunfire': return <Crosshair size={size} color={color} />;
       case 'tree_fall': return <TreeDeciduous size={size} color={color} />;
-      case 'fire_anomaly': return <Flame size={size} color={color} />;
+      case 'fire': return <Flame size={size} color={color} />;
       default: return <CloudRain size={size} color={color} />;
     }
   };

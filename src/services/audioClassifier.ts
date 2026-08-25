@@ -18,8 +18,8 @@ export interface SequenceClassificationResult {
 /**
  * Real audio classification entry point used by Audio Upload and Live Listen.
  *
- * Tries the pretrained YAMNet (AudioSet) model first — a real, general-purpose
- * sound-event classifier — and falls back to a transparent, offline
+ * Tries the pretrained YAMNet (AudioSet) model first: a real, general-purpose
+ * sound-event classifier: and falls back to a transparent, offline
  * DSP/signal-processing heuristic classifier if the model can't be loaded or
  * inference fails (e.g. no network access to fetch model weights, WebGL
  * unavailable, etc). Both paths analyze the actual audio that was
@@ -45,11 +45,11 @@ export const classifyAudio = async (
     console.error('Heuristic classifier failed:', heuristicError);
   }
 
-  // Last-resort placeholder — only reached if the audio buffer itself is
+  // Last-resort placeholder: only reached if the audio buffer itself is
   // unusable. Clearly labeled as simulated so it's never mistaken for a
   // real analysis result.
   const delay = 200;
-  const classes: SoundEventClass[] = ['chainsaw', 'vehicle', 'wildlife', 'background', 'gunshot', 'tree_fall', 'fire_anomaly'];
+  const classes: SoundEventClass[] = ['chainsaw', 'vehicle', 'wildlife', 'background', 'gunfire', 'tree_fall', 'fire'];
   const topClass = classes[Math.floor(Math.random() * classes.length)];
   return {
     id: generateId(),
@@ -72,7 +72,7 @@ export const classifyAudio = async (
  * timing so multiple distinct, timestamped events can be derived from one
  * clip (see timelineSegmenter.ts) instead of collapsing to one result.
  *
- * Unlike classifyAudio(), this has no last-resort fabricated placeholder —
+ * Unlike classifyAudio(), this has no last-resort fabricated placeholder :
  * if both real backends fail, it throws, and the caller must report that
  * honestly rather than inventing a timeline.
  */

@@ -103,7 +103,7 @@ export default function SensorDetails() {
              </div>
              <div className="glass-card p-4 rounded-xl flex flex-col justify-center">
                 <div className="flex items-center gap-2 text-gray-400 text-sm mb-1"><Thermometer size={16} className="text-amber-500"/> Temp</div>
-                <div className="text-2xl font-bold text-gray-100">{node.temperature}°C</div>
+                <div className="text-2xl font-bold text-gray-100">{node.temperature} deg C</div>
              </div>
               <div className="glass-card p-4 rounded-xl flex flex-col justify-center">
                 <div className="flex items-center gap-2 text-gray-400 text-sm mb-1"><Droplets size={16} className="text-blue-400"/> Humidity</div>
@@ -204,14 +204,14 @@ export default function SensorDetails() {
                 <div className="w-2 h-2 rounded-full bg-purple-500"></div>
                 <div>
                   <div className="text-sm font-semibold text-gray-200">Deployment Type</div>
-                  <div className="text-xs text-gray-400">Simulated node (prototype) — no physical edge hardware attached</div>
+                  <div className="text-xs text-gray-400">Simulated node (prototype): no physical edge hardware attached</div>
                 </div>
               </div>
                <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-gray-500"></div>
                 <div>
                   <div className="text-sm font-semibold text-gray-200">On-device Model</div>
-                  <div className="text-xs text-gray-400">None — real detections in this prototype run in-browser (Audio Upload / Live Listen), not on this simulated node</div>
+                  <div className="text-xs text-gray-400">None: real detections in this prototype run in-browser (Audio Upload / Live Listen), not on this simulated node</div>
                 </div>
               </div>
             </div>

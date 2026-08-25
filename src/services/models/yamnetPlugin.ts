@@ -1,10 +1,8 @@
 import { AudioModelPlugin, FrameScore, TimingPrecision } from './types';
 import { ClassificationResult, SoundEventClass, generateId } from '../../types';
 import {
-  AUDIOSET_TO_ARANYA,
   AUDIOSET_NUM_CLASSES,
-  FIRE_ALARM_CORROBORATION_INDICES,
-  FIRE_ALARM_CORROBORATION_WEIGHT,
+  poolCurrentNormalizedScores,
 } from './audiosetMapping';
 
 // ============================================================
@@ -17,7 +15,7 @@ import {
 // YAMNet expects a mono waveform at 16kHz as input and internally
 // frames it into overlapping patches (its own STFT + mel-spectrogram
 // + patch windowing), outputting one 521-class score vector per
-// patch — shape [numFrames, 521]. We run the model ONCE on the full
+// patch: shape [numFrames, 521]. We run the model ONCE on the full
 // waveform and read that native per-frame output directly (used by
 // predictSequence, for multi-event timestamped analysis); predict()
 // additionally mean-pools it into a single whole-clip result for
@@ -26,20 +24,20 @@ import {
 //
 // The model is served locally from this app's own public/ assets
 // (public/models/yamnet/model.json + weight shards), converted from
-// Google's original published yamnet.h5 weights — see
-// docs/ai-pipeline.md for the conversion procedure. The original TF
+// Google's original published yamnet.h5 weights: see
+// docs/architecture/browser-inference.md for the conversion procedure. The original TF
 // Hub-hosted TFJS bundle this used to load from is no longer publicly
 // reachable (confirmed: storage.googleapis.com/tfhub-tfjs-modules/...
 // returns 403; the tfhub.dev handle now redirects to Kaggle's generic
 // model-search page instead of the asset). Loading from a same-origin
 // static path keeps this browser-only with no backend, and the weights
 // are still fetched over HTTP on first use (from localhost instead of
-// a third party) and cached in memory for the rest of the session — so
+// a third party) and cached in memory for the rest of the session: so
 // this remains real network-loaded client-side inference, not offline/
 // embedded edge inference. If the model can't be loaded or inference
 // fails for any reason, `load()`/`predict()`/`predictSequence()` reject
 // and the caller (see audioClassifier.ts) falls back to the offline
-// heuristic plugin — the app never breaks or fabricates a result because
+// heuristic plugin: the app never breaks or fabricates a result because
 // of this.
 // ============================================================
 
@@ -51,7 +49,7 @@ const PREDICT_TIMEOUT_MS = 8000;
 // YAMNet's published, fixed internal patch framing (Google Research
 // yamnet/params.py: PATCH_WINDOW_SECONDS=0.96, PATCH_HOP_SECONDS=0.48).
 // Used to compute frame timestamps, cross-checked at runtime against the
-// actual frame count the loaded graph returns — see deriveFrameTiming().
+// actual frame count the loaded graph returns: see deriveFrameTiming().
 const PATCH_WINDOW_SECONDS = 0.96;
 const PATCH_HOP_SECONDS = 0.48;
 
@@ -69,12 +67,12 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
  * Resamples to 16kHz using the browser's own OfflineAudioContext rather
  * than a hand-rolled interpolator. A naive linear-interpolation resample
  * (the previous approach here) has no anti-aliasing filter, which folds
- * high-frequency energy back into the audible band as noise — exactly the
+ * high-frequency energy back into the audible band as noise: exactly the
  * kind of artifact that would corrupt the harmonically-rich high-frequency
  * detail a real classifier relies on (e.g. distinguishing a chainsaw's
  * buzz). The browser's resampler is a proper, high-quality implementation
  * already used elsewhere in the app (decodeAudioData); reusing it here
- * for the 48kHz(device-native)→16kHz(YAMNet input) step is strictly more
+ * for the 48kHz(device-native)->16kHz(YAMNet input) step is strictly more
  * correct, independent of what audio is being analyzed.
  */
 async function resampleTo16k(samples: Float32Array, sourceRate: number): Promise<Float32Array> {
@@ -105,8 +103,8 @@ async function resampleTo16k(samples: Float32Array, sourceRate: number): Promise
  * Strategy: compute the frame count YAMNet's fixed 0.96s/0.48s framing
  * would be expected to produce for `durationSeconds`, and compare against
  * the graph's *actual* `numFrames`. If they agree (within rounding), the
- * hardcoded hop is used and timing is tagged 'exact'. If they disagree —
- * meaning this specific hosted graph pads/frames differently than assumed —
+ * hardcoded hop is used and timing is tagged 'exact'. If they disagree :
+ * meaning this specific hosted graph pads/frames differently than assumed :
  * timing falls back to an even split of the real duration and is tagged
  * 'approximate', so the UI never claims precision that isn't there.
  */
@@ -143,32 +141,6 @@ function deriveFrameTiming(
   return { starts, ends, precision: 'approximate' };
 }
 
-/** Pools a single frame's 521 raw AudioSet scores into ARANYA's 8 classes, normalized to sum to 1. */
-function poolFrameToAranya(rawScores: number[]): Record<SoundEventClass, number> {
-  const pooled: Record<SoundEventClass, number> = {
-    chainsaw: 0, vehicle: 0, wildlife: 0, background: 0,
-    gunshot: 0, tree_fall: 0, fire_anomaly: 0, metal_clank: 0,
-  };
-  for (const [cls, indices] of Object.entries(AUDIOSET_TO_ARANYA) as [SoundEventClass, number[]][]) {
-    let sum = 0;
-    for (const idx of indices) sum += rawScores[idx] ?? 0;
-    pooled[cls] = sum;
-  }
-  // Smoke/fire-alarm sound corroborates fire_anomaly but at reduced
-  // weight — see the comment on AUDIOSET_TO_ARANYA.fire_anomaly. Added
-  // AFTER the main sum so real fire/crackle sound stays the dominant
-  // signal rather than being diluted by (or letting a spurious alarm
-  // sound alone inflate) the pooled score.
-  for (const idx of FIRE_ALARM_CORROBORATION_INDICES) {
-    pooled.fire_anomaly += (rawScores[idx] ?? 0) * FIRE_ALARM_CORROBORATION_WEIGHT;
-  }
-  const total = Object.values(pooled).reduce((a, b) => a + b, 0) || 1e-6;
-  for (const cls of Object.keys(pooled) as SoundEventClass[]) {
-    pooled[cls] = pooled[cls] / total;
-  }
-  return pooled;
-}
-
 class YamnetPlugin implements AudioModelPlugin {
   readonly name = 'YAMNet (AudioSet, TensorFlow.js, pretrained)';
 
@@ -198,7 +170,7 @@ class YamnetPlugin implements AudioModelPlugin {
     const tf = await import('@tensorflow/tfjs');
     await tf.ready();
     this.tf = tf;
-    // Plain same-origin model.json — NOT a tfhub.dev archive handle,
+    // Plain same-origin model.json: NOT a tfhub.dev archive handle,
     // so fromTFHub must not be set (that option expects TF Hub's
     // special versioned-archive URL scheme, not a static model.json).
     this.model = await tf.loadGraphModel(MODEL_URL);
@@ -222,7 +194,7 @@ class YamnetPlugin implements AudioModelPlugin {
             | import('@tensorflow/tfjs').Tensor[];
           // The YAMNet model exposes 3 outputs (predictions [numFrames,521],
           // embeddings [numFrames,1024], log_mel_spectrogram [numSTFTframes,64]).
-          // Don't assume list order — the SavedModel->TFJS conversion may not
+          // Don't assume list order: the SavedModel->TFJS conversion may not
           // preserve the original Python output ordering. Find the tensor
           // whose last dimension is exactly 521 (the class-score tensor),
           // identified by shape, not position.
@@ -264,7 +236,7 @@ class YamnetPlugin implements AudioModelPlugin {
     }
     for (let i = 0; i < numClasses; i++) meanScores[i] /= rawScores.length;
 
-    const pooled = poolFrameToAranya(meanScores);
+    const pooled = poolCurrentNormalizedScores(meanScores);
     const ranked = (Object.entries(pooled) as [SoundEventClass, number][]).sort((a, b) => b[1] - a[1]);
 
     const elapsed = performance.now() - start;
@@ -288,7 +260,7 @@ class YamnetPlugin implements AudioModelPlugin {
     return rawScores.map((frame, i) => ({
       startTime: starts[i],
       endTime: ends[i],
-      scores: poolFrameToAranya(frame),
+      scores: poolCurrentNormalizedScores(frame),
       timingPrecision: precision,
     }));
   }

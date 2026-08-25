@@ -125,7 +125,7 @@ export default function SensorNetwork() {
               </div>
 
               <div className="flex items-center gap-2 text-sm text-gray-300">
-                <Thermometer size={14} className="text-amber-500" /> {node.temperature}°C
+                <Thermometer size={14} className="text-amber-500" /> {node.temperature} deg C
               </div>
 
               <div className="flex items-center gap-2 text-sm text-gray-300">

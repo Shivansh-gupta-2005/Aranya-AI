@@ -12,10 +12,10 @@ export default function Alerts() {
   const [sort, setSort] = useState<'time' | 'severity' | 'confidence'>('time');
 
   // Alerts page = actionable/problematic events only (see
-  // eventPipeline.isAlertEligible, the single source of truth for this
+  // eventBuilder.isAlertEligible, the single source of truth for this
   // policy). Forest Ambience and other informational detections are real
   // and still visible in the audio timeline / Incident Details /
-  // Analytics — just never listed here as a threat.
+  // Analytics: just never listed here as a threat.
   const alertableEvents = events.filter((e) => e.alertEligible);
   const filteredEvents = alertableEvents.filter((e) => filter === 'all' || e.verification.status === filter);
 
@@ -52,7 +52,7 @@ export default function Alerts() {
           <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
             <ShieldAlert className="text-red-500" /> System Alerts
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Actionable events only — real detections and simulated sensor events. Forest Ambience and other informational detections are excluded (see Audio Upload timeline / Analytics).</p>
+          <p className="text-gray-400 text-sm mt-1">Actionable events only: real detections and simulated sensor events. Forest Ambience and other informational detections are excluded (see Audio Upload timeline / Analytics).</p>
         </div>
         <div className="flex gap-4 items-center">
           <div className="text-center px-4 border-r border-canopy-700">
@@ -155,7 +155,7 @@ export default function Alerts() {
                   <Clock size={14} />
                   <span>{formatTimestamp(new Date(event.detectedAt))}</span>
                   <span className="ml-auto text-forest-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    View Details →
+                    View Details {'->'}
                   </span>
                 </div>
               </div>

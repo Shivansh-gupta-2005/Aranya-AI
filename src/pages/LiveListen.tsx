@@ -8,8 +8,12 @@ import { ClassificationDisplay } from '../components/audio/ClassificationDisplay
 import { TemporalDisplay } from '../components/audio/TemporalDisplay';
 import { classifyAudio } from '../services/audioClassifier';
 import { TemporalAggregatorService } from '../services/temporalAggregator';
-import { createEventFromClassification, recordEvent } from '../services/eventPipeline';
+import { createEventFromClassification, recordEvent } from '../app/commands/eventCommands';
 import { SOUND_CLASS_LABELS } from '../types';
+import {
+  createRollingPcmCapture,
+  RollingPcmCapture,
+} from '../platform/audio/rollingPcmCapture';
 
 // How much recent audio (seconds) we keep in the rolling buffer that gets
 // fed to the classifier. Short enough to feel responsive, long enough for
@@ -41,8 +45,7 @@ export const LiveListen: React.FC = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const silentSinkRef = useRef<GainNode | null>(null);
+  const captureRef = useRef<RollingPcmCapture | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const requestFrameRef = useRef<number | undefined>(undefined);
   const autoClassifyTimerRef = useRef<number | null>(null);
@@ -52,11 +55,6 @@ export const LiveListen: React.FC = () => {
   // closure from the render that called startListening().
   const isListeningRef = useRef(false);
   const isProcessingRef = useRef(false);
-
-  // Circular buffer of raw PCM samples captured continuously from the mic.
-  const ringBufferRef = useRef<Float32Array | null>(null);
-  const ringWriteIndexRef = useRef(0);
-  const ringFilledRef = useRef(false);
 
   const aggregatorRef = useRef(new TemporalAggregatorService(3, 0.6));
   // Tracks which confirmed streak (by aggregation id) we've already
@@ -71,7 +69,7 @@ export const LiveListen: React.FC = () => {
           setMicPermission(result.state);
           result.onchange = () => setMicPermission(result.state);
         })
-        .catch(() => { /* permissions API not supported in this browser — non-fatal */ });
+        .catch(() => { /* permissions API not supported in this browser: non-fatal */ });
     }
 
     return () => {
@@ -81,17 +79,7 @@ export const LiveListen: React.FC = () => {
   }, []);
 
   const assembleLinearBuffer = (): Float32Array | null => {
-    const ring = ringBufferRef.current;
-    if (!ring) return null;
-
-    if (!ringFilledRef.current) {
-      return ring.slice(0, ringWriteIndexRef.current);
-    }
-    const w = ringWriteIndexRef.current;
-    const ordered = new Float32Array(ring.length);
-    ordered.set(ring.subarray(w));
-    ordered.set(ring.subarray(0, w), ring.length - w);
-    return ordered;
+    return captureRef.current?.snapshot() ?? null;
   };
 
   const runClassification = useCallback(async () => {
@@ -112,7 +100,7 @@ export const LiveListen: React.FC = () => {
       // pipeline Audio Upload and the simulated-sensor path use. Fires
       // once per confirmed streak, not on every re-classification tick.
       // Skipped if the classifier fell all the way through to its
-      // last-resort random placeholder (result.isSimulated) — that path
+      // last-resort random placeholder (result.isSimulated): that path
       // exists only so the UI never crashes on an unusable buffer, and
       // must never be recorded as a real detection.
       if (!result.isSimulated && agg?.isThresholdReached && agg.id !== alertedAggregationIdRef.current) {
@@ -161,37 +149,11 @@ export const LiveListen: React.FC = () => {
       source.connect(analyser);
       sourceRef.current = source;
 
-      // Rolling capture buffer, fed continuously via a ScriptProcessorNode.
-      // Routed through a zero-gain node so audio is captured for analysis
-      // without being played back (no feedback/echo).
-      ringBufferRef.current = new Float32Array(Math.round(audioCtx.sampleRate * ROLLING_WINDOW_SECONDS));
-      ringWriteIndexRef.current = 0;
-      ringFilledRef.current = false;
-
-      const bufferSize = 4096;
-      const processor = audioCtx.createScriptProcessor(bufferSize, 1, 1);
-      processor.onaudioprocess = (e) => {
-        const input = e.inputBuffer.getChannelData(0);
-        const ring = ringBufferRef.current;
-        if (!ring) return;
-        let idx = ringWriteIndexRef.current;
-        for (let i = 0; i < input.length; i++) {
-          ring[idx] = input[i];
-          idx++;
-          if (idx >= ring.length) {
-            idx = 0;
-            ringFilledRef.current = true;
-          }
-        }
-        ringWriteIndexRef.current = idx;
-      };
-      source.connect(processor);
-      const silentSink = audioCtx.createGain();
-      silentSink.gain.value = 0;
-      processor.connect(silentSink);
-      silentSink.connect(audioCtx.destination);
-      processorRef.current = processor;
-      silentSinkRef.current = silentSink;
+      captureRef.current = await createRollingPcmCapture(
+        audioCtx,
+        source,
+        ROLLING_WINDOW_SECONDS
+      );
 
       isListeningRef.current = true;
       setListening(true);
@@ -229,14 +191,9 @@ export const LiveListen: React.FC = () => {
     if (requestFrameRef.current) {
       cancelAnimationFrame(requestFrameRef.current);
     }
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current.onaudioprocess = null;
-      processorRef.current = null;
-    }
-    if (silentSinkRef.current) {
-      silentSinkRef.current.disconnect();
-      silentSinkRef.current = null;
+    if (captureRef.current) {
+      captureRef.current.stop();
+      captureRef.current = null;
     }
     if (sourceRef.current) {
       sourceRef.current.disconnect();
@@ -250,8 +207,6 @@ export const LiveListen: React.FC = () => {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    ringBufferRef.current = null;
-
     setListening(false);
     setLiveAudioLevel(0);
     setWaveformData([]);
@@ -354,10 +309,10 @@ export const LiveListen: React.FC = () => {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-3 w-3 bg-forest-500" />
           </span>
-          <span className="text-forest-300 font-mono text-sm">🎙 Listening...</span>
+          <span className="text-forest-300 font-mono text-sm">Listening Listening...</span>
           {currentClassification && (
             <span className="text-gray-300 text-sm">
-              {SOUND_CLASS_LABELS[currentClassification.eventClass]} — {(currentClassification.confidence * 100).toFixed(0)}%
+              {SOUND_CLASS_LABELS[currentClassification.eventClass]}: {(currentClassification.confidence * 100).toFixed(0)}%
             </span>
           )}
           {isProcessing && <Zap className="w-4 h-4 text-amber-400 animate-pulse ml-auto" />}
@@ -440,7 +395,7 @@ export const LiveListen: React.FC = () => {
             </button>
             <p className="text-xs text-center text-gray-500 mt-3">
               {isListening
-                ? `Auto-updating every ${(AUTO_CLASSIFY_INTERVAL_MS / 1000).toFixed(1)}s — tap to analyze immediately.`
+                ? `Auto-updating every ${(AUTO_CLASSIFY_INTERVAL_MS / 1000).toFixed(1)}s: tap to analyze immediately.`
                 : 'Start listening to enable live classification.'}
             </p>
           </div>

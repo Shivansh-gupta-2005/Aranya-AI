@@ -1,96 +1,73 @@
 # ARANYA AI
 
-ARANYA AI is a browser-based prototype for acoustic forest-surveillance workflows. It processes microphone or uploaded audio locally in the browser, turns confirmed acoustic classifications into canonical events and alerts, and presents them through a dashboard, map, incident workflow, analytics, and demo mode.
+ARANYA AI is a browser prototype for acoustic forest monitoring. It analyzes microphone and uploaded audio locally. Confirmed detections flow into one event store for alerts, maps, incidents, and analytics.
 
-The repository is the software source project. It does not contain raw training audio, Python virtual environments, Node dependencies, or hardware firmware.
+The current browser path uses a local YAMNet model with a manual AudioSet mapping. It is a baseline, not a trained ARANYA model. Sensor nodes, localization, LoRaWAN, and edge firmware remain clearly marked simulations or future work.
 
-## Current architecture
+## Quick start
 
-```text
-Audio upload / browser microphone
-  -> 16 kHz preprocessing and visual evidence
-  -> local TensorFlow.js YAMNet inference
-  -> AudioSet-to-Aranya baseline mapping and temporal processing
-  -> canonical event pipeline
-  -> persisted browser event/feedback state
-  -> dashboard, alerts, map, incidents, and analytics
-```
-
-The current real inference path is browser-only. The sensor-network and multi-node localization displays are clearly simulated prototype layers; no LoRaWAN, physical sensor transport, or TDOA localization is implemented here.
-
-## Stack
-
-- React 18, TypeScript, Vite, Tailwind CSS
-- TensorFlow.js with a locally served YAMNet GraphModel
-- Zustand browser persistence
-- Leaflet / React Leaflet, Recharts, Lucide
-- Optional Python ML workspace for future dataset and model experiments
-
-## Repository layout
-
-```text
-src/                    React UI, audio processing, model provider, event pipeline, stores
-public/models/yamnet/   Required local TensorFlow.js runtime model
-ml/                     Python dataset/embedding/classifier experiment workspace
-models/yamnet-tf/       Local conversion source only; intentionally ignored
-tfjs-converter/         Local Python conversion environment; intentionally ignored
-yamnet-convert/         Local Python conversion environment; intentionally ignored
-```
-
-## Requirements and installation
-
-Install a current Node.js/npm version compatible with Vite 5, then use the lockfile:
+Install Node.js 24 and npm 11. Then run:
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Production validation:
+The local YAMNet files under `public/models/yamnet/` are required. The app loads `model.json` from that directory.
+
+## Checks
 
 ```powershell
+npm run lint
+npm run typecheck
+npm test
 npm run build
 ```
 
-`npm run lint` is defined, but the current repository does not yet contain an ESLint flat-config file required by ESLint 9; it is not a passing validation command until that configuration is added.
+CI runs the same checks on pull requests and pushes to `main`.
 
-## Local YAMNet runtime model
+## Detector contract
 
-`public/models/yamnet/model.json` and its four `group1-shard*.bin` files are required for the existing browser inference path:
+The five candidate targets are `gunfire`, `chainsaw`, `metal_tool_activity`, `fire`, and `vehicle`. Scores are independent and may produce several detections. `background` means no target crossed its threshold. It is not a target output.
 
-```ts
-tf.loadGraphModel('/models/yamnet/model.json')
+Versioned JSON contracts live under `contracts/`. TypeScript and Python tests read the same taxonomy and schemas.
+
+## Repository layout
+
+```text
+contracts/                Shared taxonomy and model interfaces
+docs/                     Architecture and ML policy
+src/app/                  State-writing application commands
+src/domain/               Pure detector and event rules
+src/platform/             Browser adapters such as audio capture and persistence
+src/services/models/      Current inference adapters and baselines
+src/components/, pages/   React presentation and user flows
+ml/datasets/              Tracked metadata, annotations, and frozen splits
+ml/src/aranya_ml/         Python data, feature, model, and evaluation package
+ml/work/                  Ignored local audio and generated artifacts
 ```
 
-They are committed as normal Git files because the complete model is about 15.09 MB and no individual file exceeds GitHub's 100 MB normal-Git limit. Do not remove or relocate them without updating and validating the application loader.
+The repository keeps one web application at its root. It does not add an `apps/web` wrapper until another deployable application exists.
 
 ## ML workspace
 
-`ml/` is separate from the React runtime. It contains manifest/schema tooling and planned experiments comparing:
-
-1. Current YAMNet + manual AudioSet mapping baseline.
-2. YAMNet 1024-D embeddings + Logistic Regression.
-3. YAMNet 1024-D embeddings + small MLP.
-
-No trained Aranya-specific model or performance claim is committed. The initial experiment uses `gunshot`, `chainsaw_logging`, `metal_tool_activity`, and `background`, with hard-negative subtypes retained in manifest metadata.
-
-After explicitly approving Python dependency installation, ML checks can be run with:
+Install [uv](https://docs.astral.sh/uv/), then run:
 
 ```powershell
-python -B -m unittest discover -s ml/tests
-python -B ml/scripts/validate_manifest.py --manifest ml/data/manifest.csv
+cd ml
+uv sync --locked --group dev
+uv run aranya-ml validate-catalog --catalog datasets/v1
+uv run pytest
 ```
 
-## Dataset policy
+The tracked v1 catalog contains historical prototype material only. All 13 recordings have previous test use. None is training eligible.
 
-Commit dataset manifests, schemas, acquisition/provenance metadata, code, and configuration. Do not commit raw audio, downloaded public datasets, embeddings, checkpoints, or generated training/evaluation artifacts. The `ml/data/raw/` directory is intentionally ignored and remains local.
+## Design and policy
 
-## Hardware status
-
-The intended production design is INMP441 microphone -> ESP32-S3 edge inference -> event metadata -> LoRaWAN -> gateway/backend -> dashboard. This repository currently demonstrates the software-side browser workflow only. Firmware and physical LoRaWAN integration are not included.
-
-## Collaboration workflow
-
-Use `main` as the protected integration branch. Develop through short-lived branches named `feature/<description>`, `fix/<description>`, or `experiment/<description>`, then open a pull request for review. Do not copy the whole local project directory to a teammate; clone the repository and install dependencies locally.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for commit, review, model, and data rules.
+- [Repository boundaries](docs/architecture/repository-boundaries.md)
+- [Browser inference](docs/architecture/browser-inference.md)
+- [Detector taxonomy](docs/ml/taxonomy.md)
+- [Dataset policy](docs/ml/dataset-policy.md)
+- [Evaluation protocol](docs/ml/evaluation-protocol.md)
+- [Prototype limits](docs/product/prototype-limitations.md)
+- [Contributing](CONTRIBUTING.md)

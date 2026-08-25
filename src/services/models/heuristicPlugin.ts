@@ -12,7 +12,7 @@ import { hannWindow, magnitudeSpectrum } from '../fft';
 // are combined with hand-tuned weights into a score per ARANYA
 // sound class.
 //
-// This is NOT a trained neural network — it is used only as a
+// This is NOT a trained neural network: it is used only as a
 // transparent, dependency-free fallback for when a pretrained
 // model (see yamnetPlugin.ts) cannot be loaded (e.g. offline, or
 // the model host is unreachable). It always analyzes the real
@@ -30,7 +30,7 @@ const MIN_HEURISTIC_CONFIDENCE = 0.35;
 // Outer chunking window for sequence/timeline analysis (distinct from the
 // inner FRAME_SIZE/HOP_SIZE used by analyzeSignal's own feature-extraction
 // framing, which stays unchanged and runs inside each outer chunk below).
-// 1.0s/0.5s balances localizing short transients (e.g. a gunshot) against
+// 1.0s/0.5s balances localizing short transients (e.g. a gunfire) against
 // keeping enough samples per chunk for analyzeSignal's averaging to be
 // stable. This is a chosen DSP parameter, not a measured value.
 const SEQ_WINDOW_SECONDS = 1.0;
@@ -186,7 +186,7 @@ function scoreClasses(f: Features): Record<SoundEventClass, number> {
       0.55 * f.flatness +
       0.25 * steady +
       0.2 * (f.lowRatio + f.midRatio + f.highRatio + f.veryHighRatio > 0 ? 1 - Math.abs(f.lowRatio - 0.25) : 0),
-    gunshot:
+    gunfire:
       0.55 * impulsive * clamp01(1 - f.transientRate * 2) +
       0.25 * clamp01(f.rms * 5) +
       0.2 * (f.lowRatio + f.midRatio),
@@ -194,14 +194,14 @@ function scoreClasses(f: Features): Record<SoundEventClass, number> {
       0.4 * impulsive +
       0.3 * sparseTransients +
       0.3 * f.lowRatio,
-    fire_anomaly:
+    fire:
       0.5 * sparseTransients +
       0.3 * f.veryHighRatio +
       0.2 * f.flatness,
-    // Metallic clanking: impulsive like gunshot/tree_fall, but with more
-    // tonal "ring" (resonance) than a broadband gunshot report and more
+    // Metallic clanking: impulsive like gunfire/tree_fall, but with more
+    // tonal "ring" (resonance) than a broadband gunfire report and more
     // high-frequency energy than a duller wood impact.
-    metal_clank:
+    metal_tool_activity:
       0.4 * impulsive +
       0.3 * f.veryHighRatio +
       0.3 * clamp01(1 - f.flatness),
@@ -263,14 +263,14 @@ class HeuristicPlugin implements AudioModelPlugin {
   readonly name = 'ARANYA-DSP-Heuristic-v1 (rule-based, offline)';
 
   async load(): Promise<void> {
-    // No weights to load — pure signal processing.
+    // No weights to load: pure signal processing.
     return;
   }
 
   async predict(audioData: Float32Array, sampleRate: number): Promise<ClassificationResult> {
     const start = performance.now();
     if (!audioData || audioData.length === 0) {
-      throw new Error('Empty audio buffer — nothing to analyze.');
+      throw new Error('Empty audio buffer: nothing to analyze.');
     }
     const features = analyzeSignal(audioData, sampleRate);
     const scores = scoreClasses(features);
@@ -280,7 +280,7 @@ class HeuristicPlugin implements AudioModelPlugin {
 
   async predictSequence(audioData: Float32Array, sampleRate: number): Promise<FrameScore[]> {
     if (!audioData || audioData.length === 0) {
-      throw new Error('Empty audio buffer — nothing to analyze.');
+      throw new Error('Empty audio buffer: nothing to analyze.');
     }
 
     const windowSamples = Math.max(FRAME_SIZE, Math.round(SEQ_WINDOW_SECONDS * sampleRate));
@@ -299,7 +299,7 @@ class HeuristicPlugin implements AudioModelPlugin {
         endTime: end / sampleRate,
         scores: scaled,
         // Heuristic chunking is a chosen fixed hop, not a verified model
-        // framing constant — always tagged approximate.
+        // framing constant: always tagged approximate.
         timingPrecision: 'approximate',
       });
 

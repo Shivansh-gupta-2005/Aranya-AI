@@ -1,17 +1,18 @@
 import { SoundEventClass } from '../../types';
+import { TargetClass } from '../../domain/detector/taxonomy';
 
 // ============================================================
 // YAMNet / AudioSet class mapping
 // ------------------------------------------------------------
 // YAMNet (google/yamnet) predicts 521 independent AudioSet event
-// classes. ARANYA only cares about 7 forest-relevant categories,
+// classes. The current browser baseline tracks eight relevant categories,
 // so we map the subset of AudioSet class indices that are
 // acoustically relevant onto each ARANYA SoundEventClass and pool
 // their scores. Indices below come from the official YAMNet class
 // map (tensorflow/models research/audioset/yamnet/yamnet_class_map.csv).
 //
 // This mapping is a best-effort heuristic grouping, not a trained
-// classifier of its own — it lets a general-purpose pretrained
+// classifier of its own: it lets a general-purpose pretrained
 // audio event model stand in for a forest-specific one until a
 // custom ARANYA model is trained. Keep this file isolated so that
 // swapping in a custom model later only means writing a new
@@ -30,29 +31,75 @@ export const AUDIOSET_TO_ARANYA: Record<SoundEventClass, number[]> = {
   background: [
     277, 278, 279, 280, 281, 283, 284, 285, 286, 481, 494, 507, 508, 514, 515,
   ], // Wind, rain, thunder, stream, rustle, silence, ambient/environmental noise
-  gunshot: [421, 422, 423, 424, 427], // Gunshot/gunfire, machine gun, fusillade, artillery, firecracker
+  gunfire: [421, 422, 423, 424, 427], // Gunshot/gunfire, machine gun, fusillade, artillery, firecracker
   tree_fall: [431, 432, 433, 434, 454, 463, 464], // Wood, Chop, Splinter, Crack, Thud, Smash/crash, Breaking
-  // Fire, Crackle only — the actual sound of flame/burning. Smoke/fire
+  // Fire, Crackle only: the actual sound of flame/burning. Smoke/fire
   // alarm sounds (393, 394) are deliberately NOT pooled here at full
   // weight: they're electronic beeping, not fire itself, and in a real
   // forest deployment there's no fire-alarm hardware to hear, so treating
   // them as equally strong "fire" evidence would let a spurious or
   // out-of-context alarm-like sound drag a weak signal up to a false
   // "fire" conclusion. They're still used, at reduced weight, as
-  // corroborating evidence — see FIRE_ALARM_CORROBORATION_INDICES and
-  // yamnetPlugin.poolFrameToAranya.
-  fire_anomaly: [292, 293],
-  metal_clank: [478, 483], // Clang, Clatter
+  // corroborating evidence: see FIRE_ALARM_CORROBORATION_INDICES and
+  // poolCurrentNormalizedScores.
+  fire: [292, 293],
+  metal_tool_activity: [478, 483], // Clang, Clatter
 };
 
 /**
  * Smoke/fire-alarm classes: "Smoke detector, smoke alarm" (393), "Fire
- * alarm" (394). Pooled into fire_anomaly at reduced weight (see
+ * alarm" (394). Pooled into fire at reduced weight (see
  * FIRE_ALARM_CORROBORATION_WEIGHT) rather than the full weight given to
- * genuine fire/crackle sound — see the comment on AUDIOSET_TO_ARANYA.fire_anomaly.
+ * genuine fire/crackle sound: see the comment on AUDIOSET_TO_ARANYA.fire.
  */
 export const FIRE_ALARM_CORROBORATION_INDICES = [393, 394];
 export const FIRE_ALARM_CORROBORATION_WEIGHT = 0.35;
+
+function validateScores(rawScores: number[]): void {
+  if (rawScores.length !== AUDIOSET_NUM_CLASSES) {
+    throw new Error(`Expected ${AUDIOSET_NUM_CLASSES} AudioSet scores.`);
+  }
+}
+
+function poolRawCurrentScores(rawScores: number[]): Record<SoundEventClass, number> {
+  validateScores(rawScores);
+  const pooled = {} as Record<SoundEventClass, number>;
+  for (const [classId, indices] of Object.entries(AUDIOSET_TO_ARANYA) as [
+    SoundEventClass,
+    number[],
+  ][]) {
+    pooled[classId] = indices.reduce((sum, index) => sum + (rawScores[index] ?? 0), 0);
+  }
+  pooled.fire += FIRE_ALARM_CORROBORATION_INDICES.reduce(
+    (sum, index) => sum + (rawScores[index] ?? 0) * FIRE_ALARM_CORROBORATION_WEIGHT,
+    0
+  );
+  return pooled;
+}
+
+export function poolCurrentNormalizedScores(
+  rawScores: number[]
+): Record<SoundEventClass, number> {
+  const pooled = poolRawCurrentScores(rawScores);
+  const total = Object.values(pooled).reduce((sum, value) => sum + value, 0) || 1e-6;
+  for (const classId of Object.keys(pooled) as SoundEventClass[]) {
+    pooled[classId] /= total;
+  }
+  return pooled;
+}
+
+export function poolIndependentTargetScores(
+  rawScores: number[]
+): Record<TargetClass, number> {
+  const pooled = poolRawCurrentScores(rawScores);
+  return {
+    gunfire: Math.min(pooled.gunfire, 1),
+    chainsaw: Math.min(pooled.chainsaw, 1),
+    metal_tool_activity: Math.min(pooled.metal_tool_activity, 1),
+    fire: Math.min(pooled.fire, 1),
+    vehicle: Math.min(pooled.vehicle, 1),
+  };
+}
 
 /** Flat reverse lookup: AudioSet index -> ARANYA class (for indices we track). */
 export const INDEX_TO_ARANYA: Map<number, SoundEventClass> = new Map();
@@ -62,5 +109,5 @@ for (const [cls, indices] of Object.entries(AUDIOSET_TO_ARANYA) as [SoundEventCl
   }
 }
 for (const idx of FIRE_ALARM_CORROBORATION_INDICES) {
-  INDEX_TO_ARANYA.set(idx, 'fire_anomaly');
+  INDEX_TO_ARANYA.set(idx, 'fire');
 }

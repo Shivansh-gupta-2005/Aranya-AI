@@ -1,7 +1,7 @@
 // ============================================================
 // Minimal real-valued FFT (Cooley-Tukey, radix-2, iterative)
 // Used for real spectrogram generation and DSP feature extraction.
-// No external dependency — self-contained so the audio pipeline
+// No external dependency: self-contained so the audio pipeline
 // works fully offline in the browser.
 // ============================================================
 

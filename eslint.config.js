@@ -38,5 +38,21 @@ export default tseslint.config(
         ...globals.node,
       },
     },
-  }
+  },
+  {
+    files: ['src/platform/audio/*.worklet.js'],
+    languageOptions: {
+      globals: {
+        AudioWorkletProcessor: 'readonly',
+        registerProcessor: 'readonly',
+        Float32Array: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['scripts/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 );

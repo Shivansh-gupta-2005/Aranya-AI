@@ -9,7 +9,7 @@ import { StreakState, initStreak, stepStreak } from './streakLogic';
 // Previously this class's addWindow() could leave currentAggregation
 // null after a broken streak while still claiming (via an `as
 // TemporalAggregation` cast) to return a real TemporalAggregation.
-// It now returns null honestly — callers already handle a nullable
+// It now returns null honestly: callers already handle a nullable
 // TemporalAggregation (see stores/audioStore.ts).
 // ============================================================
 

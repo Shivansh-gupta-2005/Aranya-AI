@@ -67,9 +67,9 @@ export default function Analytics() {
       { name: 'Simulated Sensor', value: bySource['simulated-sensor'] },
     ];
 
-    // Real, chronological session timeline — x = event index in upload
+    // Real, chronological session timeline: x = event index in upload
     // order, y = seconds into the source clip (only meaningful for
-    // upload events; others plot at 0). Small/sparse by nature — this
+    // upload events; others plot at 0). Small/sparse by nature: this
     // reflects an actual demo session, not a synthetic 7-day trend.
     const timeline = events
       .filter((e) => e.startTime !== undefined)
@@ -91,7 +91,7 @@ export default function Analytics() {
             <Activity className="text-forest-500" /> System Analytics
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Derived from this session's actual stored events ({realEventCount} real AI detections, {simulatedEventCount} simulated sensor events) — not a mock dataset.
+            Derived from this session's actual stored events ({realEventCount} real AI detections, {simulatedEventCount} simulated sensor events): not a mock dataset.
             {' '}{alertableCount} escalated to an actionable alert, {informationalCount} informational only (e.g. Forest Ambience).
           </p>
         </div>
@@ -134,7 +134,7 @@ export default function Analytics() {
           <p className="text-xs text-gray-500 mt-4 leading-relaxed">
             Deployed model: <span className="text-gray-400">{PROTOTYPE_MODEL_DESCRIPTOR}</span>. Marking an
             incident Verified/False Alarm captures a real structured feedback record (see recent entries
-            below) — this prototype does not retrain any model live; a production deployment would
+            below): this prototype does not retrain any model live; a production deployment would
             incorporate accumulated feedback during periodic retraining/calibration cycles.
           </p>
           {records.length > 0 && (

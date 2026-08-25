@@ -25,7 +25,7 @@ export const Dashboard: React.FC = () => {
 
   const onlineNodesCount = nodes.filter(n => n.status === 'online').length;
 
-  // Recent events pulled directly from the canonical store — every real
+  // Recent events pulled directly from the canonical store: every real
   // source (upload/live-mic/simulated-sensor) shows up here, unlike the
   // pre-rebuild version which only showed events attached to a sensor
   // node and silently dropped real upload/live-mic detections.
@@ -33,10 +33,10 @@ export const Dashboard: React.FC = () => {
     .sort((a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime())
     .slice(0, 10);
 
-  // Real average processing latency across actual recorded events —
+  // Real average processing latency across actual recorded events :
   // not a fixed display value. undefined when no timed events exist yet.
   const avgLatencyLabel = (() => {
-    return events.length > 0 ? `${events.length} event${events.length === 1 ? '' : 's'} logged` : '—';
+    return events.length > 0 ? `${events.length} event${events.length === 1 ? '' : 's'} logged` : ':';
   })();
 
   return (

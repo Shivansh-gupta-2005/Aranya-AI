@@ -13,20 +13,10 @@ const getIconForClass = (eventClass: string) => {
     case 'chainsaw': return <AlertTriangle className="w-8 h-8" />;
     case 'vehicle': return <Activity className="w-8 h-8" />;
     case 'wildlife': return <ShieldCheck className="w-8 h-8" />;
-    case 'gunshot': return <Zap className="w-8 h-8" />;
-    case 'fire_anomaly': return <Flame className="w-8 h-8" />;
+    case 'gunfire': return <Zap className="w-8 h-8" />;
+    case 'fire': return <Flame className="w-8 h-8" />;
     default: return <Activity className="w-8 h-8" />;
   }
-};
-
-const EVENT_CLASS_EMOJI: Record<string, string> = {
-  chainsaw: '🪚',
-  vehicle: '🚙',
-  wildlife: '🐦',
-  background: '🌧️',
-  gunshot: '💥',
-  tree_fall: '🌳',
-  fire_anomaly: '🔥',
 };
 
 const MODEL_SOURCE_LABEL: Record<string, string> = {
@@ -109,7 +99,6 @@ export const ClassificationDisplay: React.FC<ClassificationDisplayProps> = ({
           </h2>
           
           <p className="text-xl font-medium mb-1" style={{ color }}>
-            <span className="mr-1">{EVENT_CLASS_EMOJI[result.eventClass] ?? ''}</span>
             {SOUND_CLASS_LABELS[result.eventClass]}
           </p>
           

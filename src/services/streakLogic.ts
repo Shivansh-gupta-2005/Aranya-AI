@@ -3,8 +3,8 @@
 // ------------------------------------------------------------
 // The core math behind "temporal confidence aggregation": a class
 // is only confirmed once N consecutive windows sit at/above a
-// threshold (C̄ = (1/N)ΣCᵢ). This file has no Date, no singleton
-// state, and no knowledge of live vs. batch analysis — it is used
+// threshold (mean confidence = sum(C[i]) / N). This file has no Date or singleton
+// state, and no knowledge of live vs. batch analysis: it is used
 // by both TemporalAggregatorService (live mic, wall-clock windows)
 // and timelineSegmenter (uploaded-file batch analysis, audio-relative
 // seconds) so the two contexts confirm events under identical rules.
@@ -28,7 +28,7 @@ export interface StreakStepResult<T> {
    * true if this step extended an existing same-class streak (the caller
    * should append its own per-window metadata, e.g. a timestamp);
    * false if the streak was freshly (re)started or broken (the caller
-   * should reset its own per-window metadata — to one entry if
+   * should reset its own per-window metadata: to one entry if
    * `state.eventClass` is non-null, or to empty if it's null).
    */
   extended: boolean;
@@ -67,7 +67,7 @@ export function stepStreak<T>(
     };
   }
 
-  // Different class (or no prior streak) — start a fresh one-window streak.
+  // Different class (or no prior streak): start a fresh one-window streak.
   return {
     state: { eventClass, confidences: [confidence] },
     extended: false,

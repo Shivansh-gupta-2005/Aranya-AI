@@ -23,7 +23,7 @@ export interface FrameScore {
  * Interface for a real audio-classification backend.
  *
  * Implement this to plug in a different model (e.g. a future custom
- * ARANYA-trained model) without touching the pages that consume it —
+ * ARANYA-trained model) without touching the pages that consume it :
  * only `audioClassifier.ts` needs to know which plugin(s) to try.
  */
 export interface AudioModelPlugin {
@@ -39,7 +39,7 @@ export interface AudioModelPlugin {
   predict(audioData: Float32Array, sampleRate: number): Promise<ClassificationResult>;
   /**
    * Classifies a mono PCM buffer as a time-ordered sequence of frame-level
-   * scores, preserving *when* within the clip each score applies — the
+   * scores, preserving *when* within the clip each score applies: the
    * basis for multi-event, timestamped detection over a full recording.
    * @param audioData raw samples, range approx. [-1, 1]
    * @param sampleRate sample rate of `audioData` in Hz

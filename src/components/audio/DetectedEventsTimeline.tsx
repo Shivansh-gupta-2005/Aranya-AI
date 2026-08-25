@@ -15,7 +15,7 @@ export interface DetectedEventsTimelineProps {
  * per real detected event positioned at its real start/end time, plus a
  * moving playhead synced to actual <audio> playback. Clicking a marker
  * seeks playback there. Every position on this strip is derived from
- * real event/audio data — nothing here is a fabricated placement.
+ * real event/audio data: nothing here is a fabricated placement.
  */
 export const DetectedEventsTimeline: React.FC<DetectedEventsTimelineProps> = ({
   events,
@@ -54,7 +54,7 @@ export const DetectedEventsTimeline: React.FC<DetectedEventsTimelineProps> = ({
           return (
             <div
               key={ev.id}
-              title={`${SOUND_CLASS_LABELS[ev.eventClass]} — ${(ev.confidence * 100).toFixed(0)}% @ ${start.toFixed(2)}s`}
+              title={`${SOUND_CLASS_LABELS[ev.eventClass]}: ${(ev.confidence * 100).toFixed(0)}% @ ${start.toFixed(2)}s`}
               onClick={(e) => {
                 e.stopPropagation();
                 onSeek(start);

@@ -1,5 +1,5 @@
 // ============================================================
-// ARANYA AI — Core Type Definitions
+// ARANYA AI: Core Type Definitions
 // Distributed Acoustic Intelligence for Forest Protection
 // ============================================================
 
@@ -9,26 +9,26 @@ export type SoundEventClass =
   | 'vehicle'
   | 'wildlife'
   | 'background'
-  | 'gunshot'
+  | 'gunfire'
   | 'tree_fall'
-  | 'fire_anomaly'
-  | 'metal_clank';
+  | 'fire'
+  | 'metal_tool_activity';
 
 export const SOUND_CLASS_LABELS: Record<SoundEventClass, string> = {
   chainsaw: 'Chainsaw / Tree-cutting-like',
   vehicle: 'Vehicle / Engine',
-  // Displayed as "Forest Ambience" everywhere in the app — this is the
+  // Displayed as "Forest Ambience" everywhere in the app: this is the
   // ONE place that label is defined. Internally still the real model
   // class 'wildlife' (bird/animal/insect AudioSet classes); relabeled
   // for display because these are informational/contextual detections,
-  // not a problem requiring a ranger's attention — see
-  // eventPipeline.isAlertEligible for the alert-policy side of this.
+  // not a problem requiring a ranger's attention: see
+  // eventBuilder.isAlertEligible for the alert-policy side of this.
   wildlife: 'Forest Ambience',
   background: 'Background / Natural',
-  gunshot: 'Gunshot-like (Experimental)',
+  gunfire: 'Gunshot-like (Experimental)',
   tree_fall: 'Tree-impact / Falling-tree-like (Experimental)',
-  fire_anomaly: 'Fire-related Acoustic Anomaly (Experimental)',
-  metal_clank: 'Metal Clanking / Metallic Activity (Experimental)',
+  fire: 'Fire-related Acoustic Anomaly (Experimental)',
+  metal_tool_activity: 'Metal Clanking / Metallic Activity (Experimental)',
 };
 
 export const SOUND_CLASS_COLORS: Record<SoundEventClass, string> = {
@@ -36,10 +36,10 @@ export const SOUND_CLASS_COLORS: Record<SoundEventClass, string> = {
   vehicle: '#f59e0b',
   wildlife: '#22c55e',
   background: '#6b7280',
-  gunshot: '#dc2626',
+  gunfire: '#dc2626',
   tree_fall: '#d97706',
-  fire_anomaly: '#f97316',
-  metal_clank: '#a855f7',
+  fire: '#f97316',
+  metal_tool_activity: '#a855f7',
 };
 
 // ---- Severity ----
@@ -61,7 +61,7 @@ export interface ClassificationResult {
   timestamp: Date;
   isSimulated: boolean;
   processingTimeMs: number;
-  /** Which backend produced this result. Optional — older/demo results omit it. */
+  /** Which backend produced this result. Optional: older/demo results omit it. */
   modelSource?: 'yamnet' | 'heuristic' | 'simulated';
 }
 
@@ -106,7 +106,7 @@ export interface SensorNode {
 }
 
 // NOTE: DetectionEvent/Alert/AlertStatus/TimelineEntry/Incident/RiskZone/
-// CoverageArea (pre-rebuild types) have been removed — superseded by the
+// CoverageArea (pre-rebuild types) have been removed: superseded by the
 // single canonical AranyaEvent type in ./event.ts.
 
 // ---- Analytics ----
@@ -153,12 +153,12 @@ export interface NavItem {
 export const ALERT_DESCRIPTIONS: Record<SoundEventClass, string> = {
   chainsaw: 'Potential chainsaw activity detected',
   vehicle: 'Vehicle / engine sound detected in monitored area',
-  wildlife: 'Natural forest ambience (wildlife/bird/insect sounds) — informational, not a threat',
+  wildlife: 'Natural forest ambience (wildlife/bird/insect sounds): informational, not a threat',
   background: 'Background environmental sound',
-  gunshot: 'Potential gunshot-like sound detected (experimental)',
+  gunfire: 'Potential gunfire-like sound detected (experimental)',
   tree_fall: 'Potential tree-impact / falling-tree-like sound (experimental)',
-  fire_anomaly: 'Fire-related acoustic anomaly — verify',
-  metal_clank: 'Metallic clanking/clattering sound detected (experimental)',
+  fire: 'Fire-related acoustic anomaly: verify',
+  metal_tool_activity: 'Metallic clanking/clattering sound detected (experimental)',
 };
 
 export function getSeverityFromClass(
@@ -168,9 +168,9 @@ export function getSeverityFromClass(
 ): Severity {
   if (eventClass === 'background' || eventClass === 'wildlife') return 'low';
   // Weak evidence on an inherently ambiguous class must never present as
-  // urgent, regardless of the raw confidence number — see
-  // eventPipeline.isAlertEligible for the companion alert-gating rule.
-  if ((eventClass === 'fire_anomaly' || eventClass === 'metal_clank') && evidenceStrength === 'weak') return 'low';
+  // urgent, regardless of the raw confidence number: see
+  // eventBuilder.isAlertEligible for the companion alert-gating rule.
+  if ((eventClass === 'fire' || eventClass === 'metal_tool_activity') && evidenceStrength === 'weak') return 'low';
   if (confidence >= 0.9) return 'critical';
   if (confidence >= 0.75) return 'high';
   if (confidence >= 0.5) return 'medium';
