@@ -4,12 +4,12 @@ Only files below an explicitly supplied dataset root should be inventoried.
 Dependency, build, and test-data directories are pruned before audio files
 are considered, so incidental WAV files cannot become dataset candidates.
 """
+
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
-
 
 AUDIO_SUFFIXES = frozenset({".wav", ".flac", ".mp3", ".ogg", ".m4a", ".aac"})
 

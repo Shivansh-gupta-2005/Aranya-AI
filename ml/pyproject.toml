@@ -21,6 +21,9 @@ dependencies = [
   "tqdm>=4.66,<5",
 ]
 
+[project.scripts]
+aranya-ml = "aranya_ml.cli.main:main"
+
 [project.optional-dependencies]
 tensorflow = [
   "tensorflow==2.19.0",

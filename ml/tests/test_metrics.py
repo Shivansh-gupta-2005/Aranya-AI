@@ -5,6 +5,7 @@ from aranya_ml.evaluation.metrics import (
     false_positive_episodes_per_background_hour,
 )
 
+
 def test_classification_metrics() -> None:
     result = classification_metrics(["a", "a", "b", "b"], ["a", "b", "b", "b"], ["a", "b"])
     assert result["confusion_matrix"] == [[1, 1], [0, 2]]

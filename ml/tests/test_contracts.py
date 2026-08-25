@@ -5,14 +5,13 @@ import jsonschema
 
 from aranya_ml.contracts.taxonomy import CONTEXT_CLASSES, TARGET_CLASSES, migrate_legacy_class
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_target_order_matches_shared_taxonomy() -> None:
     taxonomy = json.loads((REPOSITORY_ROOT / "contracts" / "taxonomy.v1.json").read_text())
-    assert TARGET_CLASSES == tuple(target["id"] for target in taxonomy["targets"])
-    assert CONTEXT_CLASSES == tuple(taxonomy["contextClasses"])
+    assert tuple(target["id"] for target in taxonomy["targets"]) == TARGET_CLASSES
+    assert tuple(taxonomy["contextClasses"]) == CONTEXT_CLASSES
 
 
 def test_legacy_class_migration() -> None:
@@ -22,7 +21,9 @@ def test_legacy_class_migration() -> None:
 
 
 def test_detector_output_schema_accepts_independent_scores() -> None:
-    schema = json.loads((REPOSITORY_ROOT / "contracts" / "detector-output.v1.schema.json").read_text())
+    schema = json.loads(
+        (REPOSITORY_ROOT / "contracts" / "detector-output.v1.schema.json").read_text()
+    )
     output = {
         "schemaVersion": "1",
         "inferenceId": "inference-1",
@@ -45,3 +46,12 @@ def test_detector_output_schema_accepts_independent_scores() -> None:
         ],
     }
     jsonschema.validate(output, schema)
+
+
+def test_model_bundle_example_matches_schema() -> None:
+    schema = json.loads((REPOSITORY_ROOT / "contracts" / "model-bundle.v1.schema.json").read_text())
+    bundle = json.loads(
+        (REPOSITORY_ROOT / "contracts" / "examples" / "model-bundle.example.json").read_text()
+    )
+
+    jsonschema.validate(bundle, schema)
