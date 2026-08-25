@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1",
+  "targets": [
+    { "id": "gunfire", "displayName": "Gunfire", "initialStatus": "candidate" },
+    { "id": "chainsaw", "displayName": "Chainsaw", "initialStatus": "candidate" },
+    { "id": "metal_tool_activity", "displayName": "Metal Tool Activity", "initialStatus": "candidate" },
+    { "id": "fire", "displayName": "Fire", "initialStatus": "candidate" },
+    { "id": "vehicle", "displayName": "Vehicle", "initialStatus": "candidate" }
+  ],
+  "contextClasses": ["wildlife", "background", "tree_fall"],
+  "legacyMappings": {
+    "gunshot": "gunfire",
+    "fire_anomaly": "fire",
+    "metal_clank": "metal_tool_activity"
+  }
+}

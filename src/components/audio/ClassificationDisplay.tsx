@@ -1,6 +1,6 @@
 import React from 'react';
 import { Loader2, AlertTriangle, ShieldCheck, Activity, Flame, ShieldAlert, Zap } from 'lucide-react';
-import { ClassificationResult, SOUND_CLASS_LABELS, SOUND_CLASS_COLORS, ALERT_DESCRIPTIONS, getSeverityFromClass, SEVERITY_COLORS } from '../../types';
+import { ClassificationResult, SOUND_CLASS_LABELS, SOUND_CLASS_COLORS, ALERT_DESCRIPTIONS, getSeverityFromClass } from '../../types';
 
 export interface ClassificationDisplayProps {
   result: ClassificationResult | null;
@@ -62,7 +62,6 @@ export const ClassificationDisplay: React.FC<ClassificationDisplayProps> = ({
 
   const severity = getSeverityFromClass(result.eventClass, result.confidence);
   const color = SOUND_CLASS_COLORS[result.eventClass];
-  const severityColor = SEVERITY_COLORS[severity];
   
   return (
     <div className={`glass-card p-6 flex flex-col ${className}`}>

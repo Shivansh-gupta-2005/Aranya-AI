@@ -1,4 +1,4 @@
-import { SensorNode, SoundEventClass } from '../types';
+import { SensorNode, SensorStatus, SoundEventClass } from '../types';
 
 // ============================================================
 // SIMULATED sensor network — clearly labeled as such everywhere it
@@ -114,16 +114,17 @@ export class SensorSimulatorService {
       const newTemp = Math.max(22, Math.min(38, node.temperature + tempVariation));
 
       const newBattery = Math.max(0, node.battery - batteryDrain);
-      let newStatus = node.status;
-      if (newBattery < 10 || node.signalStrength < 20) newStatus = 'critical';
-      else if (newBattery < 30 || node.signalStrength < 40) newStatus = 'warning';
-      else newStatus = 'online';
+      const newStatus: SensorStatus = newBattery < 10 || node.signalStrength < 20
+        ? 'critical'
+        : newBattery < 30 || node.signalStrength < 40
+          ? 'warning'
+          : 'online';
 
       return {
         ...node,
         battery: newBattery,
         temperature: newTemp,
-        status: newStatus as any,
+        status: newStatus,
         lastHeartbeat: new Date()
       };
     });
@@ -190,17 +191,18 @@ export class SensorSimulatorService {
     const tempVariation = (Math.random() - 0.5) * 2;
     const newTemp = Math.max(22, Math.min(38, node.temperature + tempVariation));
     const newBattery = Math.max(0, node.battery - batteryDrain);
-    let newStatus = node.status;
-    if (newBattery < 10 || node.signalStrength < 20) newStatus = 'critical';
-    else if (newBattery < 30 || node.signalStrength < 40) newStatus = 'warning';
-    else newStatus = 'online';
+    const newStatus: SensorStatus = newBattery < 10 || node.signalStrength < 20
+      ? 'critical'
+      : newBattery < 30 || node.signalStrength < 40
+        ? 'warning'
+        : 'online';
 
     this.nodes[nodeIndex] = {
       ...node,
       battery: newBattery,
       temperature: newTemp,
       signalStrength: Math.max(20, Math.min(100, node.signalStrength + (Math.random() - 0.5) * 10)),
-      status: newStatus as any,
+      status: newStatus,
       lastHeartbeat: new Date()
     };
   }

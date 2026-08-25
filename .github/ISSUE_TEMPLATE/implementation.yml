@@ -1,0 +1,46 @@
+name: Implementation task
+description: Track one independently testable Aranya change.
+title: ""
+labels:
+  - implementation
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: State the observable result.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Link the contract, ADR, bug, or user need that defines this work.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and blockers
+      description: List linked issues, external decisions, data, or hardware inputs.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance checks
+      description: List commands and observable scenarios that prove completion.
+      placeholder: |
+        - [ ] Test fails before the implementation
+        - [ ] Test passes after the implementation
+        - [ ] Relevant full checks pass
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: Durable documentation
+      description: List contracts, ADRs, model cards, or setup docs that must change.
+  - type: input
+    id: owner
+    attributes:
+      label: Owner
+      description: Name the responsible person or team.

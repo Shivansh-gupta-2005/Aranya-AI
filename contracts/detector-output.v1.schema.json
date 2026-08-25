@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aranya.ai/schemas/detector-output-v1.json",
+  "title": "ARANYA detector output v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "inferenceId",
+    "modelId",
+    "modelVersion",
+    "preprocessingId",
+    "startSeconds",
+    "endSeconds",
+    "timingPrecision",
+    "scores",
+    "detections"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "inferenceId": { "type": "string", "minLength": 1 },
+    "modelId": { "type": "string", "minLength": 1 },
+    "modelVersion": { "type": "string", "minLength": 1 },
+    "preprocessingId": { "type": "string", "minLength": 1 },
+    "startSeconds": { "type": "number", "minimum": 0 },
+    "endSeconds": { "type": "number", "exclusiveMinimum": 0 },
+    "timingPrecision": { "enum": ["exact", "approximate"] },
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gunfire", "chainsaw", "metal_tool_activity", "fire", "vehicle"],
+      "properties": {
+        "gunfire": { "$ref": "#/$defs/score" },
+        "chainsaw": { "$ref": "#/$defs/score" },
+        "metal_tool_activity": { "$ref": "#/$defs/score" },
+        "fire": { "$ref": "#/$defs/score" },
+        "vehicle": { "$ref": "#/$defs/score" }
+      }
+    },
+    "detections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["classId", "score", "threshold"],
+        "properties": {
+          "classId": { "$ref": "#/$defs/targetClass" },
+          "score": { "$ref": "#/$defs/score" },
+          "threshold": { "$ref": "#/$defs/score" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "targetClass": {
+      "enum": ["gunfire", "chainsaw", "metal_tool_activity", "fire", "vehicle"]
+    }
+  }
+}

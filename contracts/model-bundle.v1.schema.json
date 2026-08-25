@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aranya.ai/schemas/model-bundle-v1.json",
+  "title": "ARANYA model bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "modelId",
+    "modelVersion",
+    "sha256",
+    "runtime",
+    "input",
+    "preprocessingId",
+    "outputClassOrder",
+    "thresholds",
+    "classStatus",
+    "datasetVersion",
+    "splitVersion",
+    "testVectors"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "modelId": { "type": "string", "minLength": 1 },
+    "modelVersion": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "runtime": { "type": "string", "minLength": 1 },
+    "preprocessingId": { "type": "string", "minLength": 1 },
+    "datasetVersion": { "type": "string", "minLength": 1 },
+    "splitVersion": { "type": "string", "minLength": 1 },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sampleRateHz", "channels", "dtype", "windowSeconds", "hopSeconds"],
+      "properties": {
+        "sampleRateHz": { "type": "integer", "exclusiveMinimum": 0 },
+        "channels": { "const": 1 },
+        "dtype": { "enum": ["float32", "int16"] },
+        "windowSeconds": { "type": "number", "exclusiveMinimum": 0 },
+        "hopSeconds": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "outputClassOrder": {
+      "const": ["gunfire", "chainsaw", "metal_tool_activity", "fire", "vehicle"]
+    },
+    "thresholds": { "$ref": "#/$defs/classScores" },
+    "classStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gunfire", "chainsaw", "metal_tool_activity", "fire", "vehicle"],
+      "properties": {
+        "gunfire": { "$ref": "#/$defs/status" },
+        "chainsaw": { "$ref": "#/$defs/status" },
+        "metal_tool_activity": { "$ref": "#/$defs/status" },
+        "fire": { "$ref": "#/$defs/status" },
+        "vehicle": { "$ref": "#/$defs/status" }
+      }
+    },
+    "testVectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "status": { "enum": ["candidate", "promoted"] },
+    "classScores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gunfire", "chainsaw", "metal_tool_activity", "fire", "vehicle"],
+      "properties": {
+        "gunfire": { "$ref": "#/$defs/score" },
+        "chainsaw": { "$ref": "#/$defs/score" },
+        "metal_tool_activity": { "$ref": "#/$defs/score" },
+        "fire": { "$ref": "#/$defs/score" },
+        "vehicle": { "$ref": "#/$defs/score" }
+      }
+    }
+  }
+}

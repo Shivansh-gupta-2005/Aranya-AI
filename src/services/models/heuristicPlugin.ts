@@ -103,7 +103,6 @@ function analyzeSignal(audioData: Float32Array, sampleRate: number) {
   const frames: FrameFeatures[] = [];
   const envelope: number[] = [];
 
-  const usableLength = Math.max(audioData.length, FRAME_SIZE);
   const padded = audioData.length >= FRAME_SIZE ? audioData : (() => {
     const p = new Float32Array(FRAME_SIZE);
     p.set(audioData);

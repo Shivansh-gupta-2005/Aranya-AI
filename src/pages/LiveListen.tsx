@@ -44,7 +44,7 @@ export const LiveListen: React.FC = () => {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const silentSinkRef = useRef<GainNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const requestFrameRef = useRef<number>();
+  const requestFrameRef = useRef<number | undefined>(undefined);
   const autoClassifyTimerRef = useRef<number | null>(null);
 
   // Mirrors `isListening` synchronously so the rAF loop (which is set up
@@ -141,7 +141,6 @@ export const LiveListen: React.FC = () => {
       isProcessingRef.current = false;
       setProcessing(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setClassification, setProcessing, setTemporalAggregation]);
 
   const startListening = async () => {
@@ -220,7 +219,7 @@ export const LiveListen: React.FC = () => {
     }
   };
 
-  const stopListening = () => {
+  function stopListening() {
     isListeningRef.current = false;
 
     if (autoClassifyTimerRef.current !== null) {
@@ -256,7 +255,7 @@ export const LiveListen: React.FC = () => {
     setListening(false);
     setLiveAudioLevel(0);
     setWaveformData([]);
-  };
+  }
 
   const processAudioFrame = () => {
     if (!analyserRef.current || !isListeningRef.current) return;

@@ -27,7 +27,7 @@ export const processAudioBuffer = (buffer: AudioBuffer): AudioAnalysis => {
  * and returns log-scaled, normalized magnitudes as [time][frequencyBin].
  * Capped to a fixed number of time/frequency bins for rendering.
  */
-export const createSpectrogram = (audioData: Float32Array, sampleRate: number): number[][] => {
+export const createSpectrogram = (audioData: Float32Array, _sampleRate: number): number[][] => {
   const targetFrames = 100;
   const targetBins = 96;
   const frameSize = 1024;

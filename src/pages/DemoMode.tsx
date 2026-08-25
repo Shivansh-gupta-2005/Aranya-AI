@@ -53,8 +53,6 @@ const SINGLE_SCENARIOS: { key: SoundEventClass; label: string; icon: React.Eleme
 export default function DemoMode() {
   const navigate = useNavigate();
   const { nodes, triggerDetection, initialize } = useSensorStore();
-  const { getEvent } = useEventStore();
-
   const [isRunning, setIsRunning] = useState(false);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [steps, setSteps] = useState<DemoStep[]>([]);

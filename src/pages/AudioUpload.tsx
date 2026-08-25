@@ -79,7 +79,7 @@ export const AudioUpload: React.FC = () => {
     setIsDragging(false);
   }, []);
 
-  const validateFile = (file: File) => {
+  function validateFile(file: File) {
     const validTypes = ['audio/wav', 'audio/mpeg', 'audio/mp3', 'audio/ogg', 'audio/flac', 'audio/x-m4a'];
     if (!validTypes.includes(file.type) && !file.name.match(/\.(wav|mp3|ogg|flac|m4a)$/i)) {
       setError('Invalid file format. Please upload .wav, .mp3, .ogg, or .flac files.');
@@ -93,9 +93,9 @@ export const AudioUpload: React.FC = () => {
     }
 
     return true;
-  };
+  }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setIsDragging(false);
     setError(null);
@@ -104,7 +104,7 @@ export const AudioUpload: React.FC = () => {
     if (droppedFile && validateFile(droppedFile)) {
       processFile(droppedFile);
     }
-  }, []);
+  }
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -114,7 +114,7 @@ export const AudioUpload: React.FC = () => {
     }
   };
 
-  const processFile = async (file: File) => {
+  async function processFile(file: File) {
     setFile(file);
     setAudioUrl(URL.createObjectURL(file));
     setAnalysisTimestamp(null);
@@ -137,7 +137,7 @@ export const AudioUpload: React.FC = () => {
     } finally {
       setIsDecoding(false);
     }
-  };
+  }
 
   const handleAnalyze = async () => {
     const buffer = decodedBufferRef.current;
