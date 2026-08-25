@@ -59,6 +59,7 @@ ml/reports/metrics*.json
 ml/reports/confusion_matrix*.*
 
 # IDE / OS / temporary files
+.worktrees/
 .vscode/
 .idea/
 *.suo
