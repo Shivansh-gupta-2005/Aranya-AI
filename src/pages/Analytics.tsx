@@ -1,59 +1,12 @@
 import React, { useMemo } from 'react';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, Legend
+import {
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, Legend, ScatterChart, Scatter
 } from 'recharts';
-import { Activity, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
-import { SOUND_CLASS_COLORS } from '../types';
-
-// Mock Analytics Data Generator
-const generateMockData = () => {
-  const days = Array.from({length: 7}, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return d.toLocaleDateString('en-US', { weekday: 'short' });
-  });
-
-  const eventsOverTime = days.map(day => ({
-    name: day,
-    chainsaw: Math.floor(Math.random() * 5),
-    vehicle: Math.floor(Math.random() * 10),
-    wildlife: Math.floor(Math.random() * 20) + 10,
-    gunshot: Math.floor(Math.random() * 2),
-    fire_anomaly: Math.floor(Math.random() * 1)
-  }));
-
-  const eventsByType = [
-    { name: 'Chainsaw', value: 15, color: SOUND_CLASS_COLORS.chainsaw },
-    { name: 'Vehicle', value: 34, color: SOUND_CLASS_COLORS.vehicle },
-    { name: 'Wildlife', value: 142, color: SOUND_CLASS_COLORS.wildlife },
-    { name: 'Gunshot', value: 4, color: SOUND_CLASS_COLORS.gunshot },
-    { name: 'Fire', value: 2, color: SOUND_CLASS_COLORS.fire_anomaly },
-  ];
-
-  const eventsByZone = [
-    { name: 'North Ridge', events: 45 },
-    { name: 'East Valley', events: 23 },
-    { name: 'South Border', events: 67 },
-    { name: 'West Sector', events: 12 },
-    { name: 'Central Core', events: 50 },
-  ];
-
-  const confidenceDist = [
-    { name: '<50%', value: 12 },
-    { name: '50-65%', value: 25 },
-    { name: '65-80%', value: 45 },
-    { name: '80-90%', value: 80 },
-    { name: '90%+', value: 35 },
-  ];
-
-  const falseAlertRate = days.map(day => ({
-    name: day,
-    rate: (Math.random() * 15 + 5).toFixed(1)
-  }));
-
-  return { eventsOverTime, eventsByType, eventsByZone, confidenceDist, falseAlertRate };
-};
+import { Activity, AlertTriangle, ShieldQuestion } from 'lucide-react';
+import { useEventStore } from '../stores/eventStore';
+import { useFeedbackStore, PROTOTYPE_MODEL_DESCRIPTOR } from '../stores/feedbackStore';
+import { SOUND_CLASS_COLORS, SOUND_CLASS_LABELS, SEVERITY_COLORS, SoundEventClass, Severity } from '../types';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -73,7 +26,62 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function Analytics() {
-  const data = useMemo(() => generateMockData(), []);
+  const { events } = useEventStore();
+  const { records, getFalsePositiveCount, getTruePositiveCount, getTotalCount } = useFeedbackStore();
+
+  const stats = useMemo(() => {
+    const byClass = new Map<SoundEventClass, number>();
+    const bySeverity = new Map<Severity, number>();
+    const bySource = { upload: 0, 'live-mic': 0, 'simulated-sensor': 0 };
+    const confidenceBuckets = [
+      { label: '<50%', min: 0, max: 0.5, count: 0 },
+      { label: '50-65%', min: 0.5, max: 0.65, count: 0 },
+      { label: '65-80%', min: 0.65, max: 0.8, count: 0 },
+      { label: '80-90%', min: 0.8, max: 0.9, count: 0 },
+      { label: '90%+', min: 0.9, max: 1.01, count: 0 },
+    ];
+
+    for (const e of events) {
+      byClass.set(e.eventClass, (byClass.get(e.eventClass) ?? 0) + 1);
+      bySeverity.set(e.severity, (bySeverity.get(e.severity) ?? 0) + 1);
+      bySource[e.source.type] = (bySource[e.source.type] ?? 0) + 1;
+      const bucket = confidenceBuckets.find((b) => e.confidence >= b.min && e.confidence < b.max);
+      if (bucket) bucket.count++;
+    }
+
+    const eventsByType = Array.from(byClass.entries()).map(([type, count]) => ({
+      name: SOUND_CLASS_LABELS[type],
+      value: count,
+      color: SOUND_CLASS_COLORS[type],
+    }));
+
+    const eventsBySeverity = Array.from(bySeverity.entries()).map(([severity, count]) => ({
+      name: severity,
+      value: count,
+      color: SEVERITY_COLORS[severity],
+    }));
+
+    const eventsBySource = [
+      { name: 'Audio Upload (real)', value: bySource.upload },
+      { name: 'Live Mic (real)', value: bySource['live-mic'] },
+      { name: 'Simulated Sensor', value: bySource['simulated-sensor'] },
+    ];
+
+    // Real, chronological session timeline — x = event index in upload
+    // order, y = seconds into the source clip (only meaningful for
+    // upload events; others plot at 0). Small/sparse by nature — this
+    // reflects an actual demo session, not a synthetic 7-day trend.
+    const timeline = events
+      .filter((e) => e.startTime !== undefined)
+      .map((e, i) => ({ index: i, startTime: e.startTime ?? 0, eventClass: e.eventClass }));
+
+    return { eventsByType, eventsBySeverity, eventsBySource, confidenceBuckets, timeline };
+  }, [events]);
+
+  const realEventCount = events.filter((e) => !e.isSimulated).length;
+  const simulatedEventCount = events.filter((e) => e.isSimulated).length;
+  const alertableCount = events.filter((e) => e.alertEligible).length;
+  const informationalCount = events.length - alertableCount;
 
   return (
     <div className="flex flex-col gap-6 h-full w-full pb-8 overflow-y-auto">
@@ -82,126 +90,178 @@ export default function Analytics() {
           <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
             <Activity className="text-forest-500" /> System Analytics
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Acoustic detection performance and network metrics</p>
+          <p className="text-gray-400 text-sm mt-1">
+            Derived from this session's actual stored events ({realEventCount} real AI detections, {simulatedEventCount} simulated sensor events) — not a mock dataset.
+            {' '}{alertableCount} escalated to an actionable alert, {informationalCount} informational only (e.g. Forest Ambience).
+          </p>
         </div>
         <div className="badge-purple px-4 py-2 text-sm font-bold flex items-center gap-2">
-           <AlertTriangle size={16} /> Prototype / Simulated Data
+           <AlertTriangle size={16} /> Prototype Dataset
         </div>
       </div>
 
+      {events.length === 0 && (
+        <div className="glass-card p-10 rounded-xl text-center text-gray-400">
+          No events recorded yet in this session. Run Audio Upload, Live Listen, or Demo Mode to populate analytics.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Events Over Time */}
+
+        {/* Feedback / Model Improvement Loop */}
         <div className="glass-card p-6 rounded-xl col-span-1 lg:col-span-2">
-          <h2 className="text-lg font-bold text-gray-200 mb-6">Detection Events (Last 7 Days)</h2>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.eventsOverTime} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorWild" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={SOUND_CLASS_COLORS.wildlife} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={SOUND_CLASS_COLORS.wildlife} stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorChain" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={SOUND_CLASS_COLORS.chainsaw} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={SOUND_CLASS_COLORS.chainsaw} stopOpacity={0}/>
-                  </linearGradient>
-                   <linearGradient id="colorVeh" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={SOUND_CLASS_COLORS.vehicle} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={SOUND_CLASS_COLORS.vehicle} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2d4038" vertical={false} />
-                <XAxis dataKey="name" stroke="#6b7280" tick={{fill: '#9ca3af', fontSize: 12}} tickLine={false} axisLine={false} />
-                <YAxis stroke="#6b7280" tick={{fill: '#9ca3af', fontSize: 12}} tickLine={false} axisLine={false} />
-                <RechartsTooltip content={<CustomTooltip />} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
-                <Area type="monotone" dataKey="wildlife" name="Wildlife" stroke={SOUND_CLASS_COLORS.wildlife} fillOpacity={1} fill="url(#colorWild)" />
-                <Area type="monotone" dataKey="vehicle" name="Vehicle" stroke={SOUND_CLASS_COLORS.vehicle} fillOpacity={1} fill="url(#colorVeh)" />
-                <Area type="monotone" dataKey="chainsaw" name="Chainsaw" stroke={SOUND_CLASS_COLORS.chainsaw} fillOpacity={1} fill="url(#colorChain)" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <h2 className="text-lg font-bold text-gray-200 mb-4 flex items-center gap-2">
+            <ShieldQuestion size={20} className="text-purple-400" /> Feedback & Model Improvement
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-canopy-800/50 p-4 rounded-lg border border-canopy-700/50 text-center">
+              <div className="text-2xl font-bold text-gray-100">{getTotalCount()}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">Feedback Samples</div>
+            </div>
+            <div className="bg-canopy-800/50 p-4 rounded-lg border border-canopy-700/50 text-center">
+              <div className="text-2xl font-bold text-red-400">{getFalsePositiveCount()}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">False Positives Logged</div>
+            </div>
+            <div className="bg-canopy-800/50 p-4 rounded-lg border border-canopy-700/50 text-center">
+              <div className="text-2xl font-bold text-green-400">{getTruePositiveCount()}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">True Positives Confirmed</div>
+            </div>
+            <div className="bg-canopy-800/50 p-4 rounded-lg border border-canopy-700/50 text-center">
+              <div className="text-sm font-bold text-gray-300">Not yet run</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">Last Calibration</div>
+            </div>
           </div>
-        </div>
-
-        {/* Events by Type Pie */}
-        <div className="glass-card p-6 rounded-xl">
-          <h2 className="text-lg font-bold text-gray-200 mb-6">Distribution by Event Class</h2>
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data.eventsByType}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {data.eventsByType.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+          <p className="text-xs text-gray-500 mt-4 leading-relaxed">
+            Deployed model: <span className="text-gray-400">{PROTOTYPE_MODEL_DESCRIPTOR}</span>. Marking an
+            incident Verified/False Alarm captures a real structured feedback record (see recent entries
+            below) — this prototype does not retrain any model live; a production deployment would
+            incorporate accumulated feedback during periodic retraining/calibration cycles.
+          </p>
+          {records.length > 0 && (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-canopy-700 text-gray-500">
+                    <th className="pb-2 pr-4 font-medium">Recorded</th>
+                    <th className="pb-2 pr-4 font-medium">Prediction</th>
+                    <th className="pb-2 pr-4 font-medium">Confidence</th>
+                    <th className="pb-2 font-medium">Verdict</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.slice(0, 8).map((r) => (
+                    <tr key={r.id} className="border-b border-canopy-800/50">
+                      <td className="py-2 pr-4 text-gray-400">{new Date(r.recordedAt).toLocaleTimeString()}</td>
+                      <td className="py-2 pr-4 text-gray-300">{SOUND_CLASS_LABELS[r.predictedClass]}</td>
+                      <td className="py-2 pr-4 text-gray-300">{(r.predictedConfidence * 100).toFixed(1)}%</td>
+                      <td className={`py-2 font-semibold ${r.verdict === 'false_alarm' ? 'text-red-400' : 'text-green-400'}`}>
+                        {r.verdict === 'false_alarm' ? 'False Alarm' : 'True Positive'}
+                      </td>
+                    </tr>
                   ))}
-                </Pie>
-                <RechartsTooltip content={<CustomTooltip />} />
-                <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
-              </PieChart>
-            </ResponsiveContainer>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Events by Type */}
+        <div className="glass-card p-6 rounded-xl">
+          <h2 className="text-lg font-bold text-gray-200 mb-6">Events by Class</h2>
+          <div className="h-[250px] w-full">
+            {stats.eventsByType.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-gray-500 text-sm">No events yet</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={stats.eventsByType} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" stroke="none">
+                    {stats.eventsByType.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip content={<CustomTooltip />} />
+                  <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
-        {/* Events by Zone Bar */}
+        {/* Events by Severity */}
         <div className="glass-card p-6 rounded-xl">
-          <h2 className="text-lg font-bold text-gray-200 mb-6">Hotspots by Zone</h2>
+          <h2 className="text-lg font-bold text-gray-200 mb-6">Events by Severity</h2>
+          <div className="h-[250px] w-full">
+            {stats.eventsBySeverity.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-gray-500 text-sm">No events yet</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.eventsBySeverity}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2d4038" vertical={false} />
+                  <XAxis dataKey="name" stroke="#6b7280" tick={{ fill: '#9ca3af', fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#6b7280" tick={{ fill: '#9ca3af', fontSize: 12 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#1a2420' }} />
+                  <Bar dataKey="value" name="Events" radius={[4, 4, 0, 0]}>
+                    {stats.eventsBySeverity.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Events by Source */}
+        <div className="glass-card p-6 rounded-xl">
+          <h2 className="text-lg font-bold text-gray-200 mb-6">Events by Source</h2>
           <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.eventsByZone} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
+              <BarChart data={stats.eventsBySource} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2d4038" horizontal={false} />
-                <XAxis type="number" stroke="#6b7280" tick={{fill: '#9ca3af', fontSize: 12}} tickLine={false} axisLine={false} />
-                <YAxis dataKey="name" type="category" stroke="#6b7280" tick={{fill: '#9ca3af', fontSize: 12}} tickLine={false} axisLine={false} />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{fill: '#1a2420'}} />
-                <Bar dataKey="events" name="Total Events" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                <XAxis type="number" stroke="#6b7280" tick={{ fill: '#9ca3af', fontSize: 12 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <YAxis dataKey="name" type="category" stroke="#6b7280" tick={{ fill: '#9ca3af', fontSize: 11 }} tickLine={false} axisLine={false} width={110} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#1a2420' }} />
+                <Bar dataKey="value" name="Events" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Confidence Dist Bar */}
+        {/* Confidence Distribution */}
         <div className="glass-card p-6 rounded-xl">
           <h2 className="text-lg font-bold text-gray-200 mb-6">AI Confidence Distribution</h2>
           <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.confidenceDist} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={stats.confidenceBuckets} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2d4038" vertical={false} />
-                <XAxis dataKey="name" stroke="#6b7280" tick={{fill: '#9ca3af', fontSize: 12}} tickLine={false} axisLine={false} />
-                <YAxis stroke="#6b7280" tick={{fill: '#9ca3af', fontSize: 12}} tickLine={false} axisLine={false} />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{fill: '#1a2420'}} />
-                <Bar dataKey="value" name="Detections" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <XAxis dataKey="label" stroke="#6b7280" tick={{ fill: '#9ca3af', fontSize: 12 }} tickLine={false} axisLine={false} />
+                <YAxis stroke="#6b7280" tick={{ fill: '#9ca3af', fontSize: 12 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#1a2420' }} />
+                <Bar dataKey="count" name="Events" fill="#22c55e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* False Alert Rate Line */}
+        {/* Events over the uploaded clip's timeline */}
         <div className="glass-card p-6 rounded-xl">
-          <h2 className="text-lg font-bold text-gray-200 mb-6 flex justify-between items-center">
-            False Alert Rate (%)
-            <span className="text-sm font-normal text-green-400 flex items-center gap-1"><TrendingDown size={14}/> Improved</span>
-          </h2>
+          <h2 className="text-lg font-bold text-gray-200 mb-6">Detections vs. Clip Time (uploaded-audio events)</h2>
           <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.falseAlertRate} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2d4038" vertical={false} />
-                <XAxis dataKey="name" stroke="#6b7280" tick={{fill: '#9ca3af', fontSize: 12}} tickLine={false} axisLine={false} />
-                <YAxis stroke="#6b7280" tick={{fill: '#9ca3af', fontSize: 12}} tickLine={false} axisLine={false} />
-                <RechartsTooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="rate" name="False +ve Rate" stroke="#ef4444" strokeWidth={3} dot={{r: 4, fill: '#ef4444', strokeWidth: 0}} activeDot={{r: 6}} />
-              </LineChart>
-            </ResponsiveContainer>
+            {stats.timeline.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-gray-500 text-sm">No upload-sourced events yet</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2d4038" />
+                  <XAxis dataKey="index" name="Event #" stroke="#6b7280" tick={{ fill: '#9ca3af', fontSize: 12 }} allowDecimals={false} />
+                  <YAxis dataKey="startTime" name="Clip time (s)" stroke="#6b7280" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+                  <Scatter data={stats.timeline} fill="#f59e0b" />
+                </ScatterChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
-
       </div>
     </div>
   );

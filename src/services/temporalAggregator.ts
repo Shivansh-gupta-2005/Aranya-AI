@@ -1,77 +1,88 @@
 import { SoundEventClass, TemporalAggregation, TemporalWindow, generateId } from '../types';
+import { StreakState, initStreak, stepStreak } from './streakLogic';
+
+// ============================================================
+// Live/streaming counterpart to timelineSegmenter's batch analysis.
+// Wraps the shared streakLogic primitive with wall-clock Date
+// timestamps and instance state for LiveListen's rolling-buffer loop.
+//
+// Previously this class's addWindow() could leave currentAggregation
+// null after a broken streak while still claiming (via an `as
+// TemporalAggregation` cast) to return a real TemporalAggregation.
+// It now returns null honestly — callers already handle a nullable
+// TemporalAggregation (see stores/audioStore.ts).
+// ============================================================
 
 export class TemporalAggregatorService {
   private windowsRequired: number;
   private threshold: number;
-  private currentAggregation: TemporalAggregation | null = null;
-  
+  private streak: StreakState<SoundEventClass> = initStreak<SoundEventClass>();
+  private windows: TemporalWindow[] = [];
+  private aggregationId: string | null = null;
+
   constructor(windowsRequired: number = 3, threshold: number = 0.7) {
     this.windowsRequired = windowsRequired;
     this.threshold = threshold;
   }
 
-  addWindow(eventClass: SoundEventClass, confidence: number): TemporalAggregation {
-    if (
-      this.currentAggregation &&
-      this.currentAggregation.eventClass === eventClass
-    ) {
-      // Continue tracking current event
-      const windowIndex = this.currentAggregation.windows.length;
-      
-      if (confidence >= this.threshold) {
-        this.currentAggregation.windows.push({
-          windowIndex,
-          eventClass,
-          confidence,
-          timestamp: new Date()
-        });
+  addWindow(eventClass: SoundEventClass, confidence: number): TemporalAggregation | null {
+    const result = stepStreak(this.streak, eventClass, confidence, this.threshold, this.windowsRequired);
+    this.streak = result.state;
 
-        // Recalculate average
-        const sum = this.currentAggregation.windows.reduce((acc, w) => acc + w.confidence, 0);
-        this.currentAggregation.averageConfidence = sum / this.currentAggregation.windows.length;
+    if (result.state.eventClass === null) {
+      this.windows = [];
+      this.aggregationId = null;
+      return null;
+    }
 
-        if (this.currentAggregation.windows.length >= this.windowsRequired) {
-          this.currentAggregation.isThresholdReached = true;
-        }
-      } else {
-        // Drop below threshold breaks the streak, reset
-        this.reset();
-        this.startNewAggregation(eventClass, confidence);
-      }
+    if (result.extended) {
+      this.windows.push({
+        windowIndex: this.windows.length,
+        eventClass: result.state.eventClass,
+        confidence,
+        timestamp: new Date(),
+      });
     } else {
-      // Different class or no current tracking, reset and start new
-      this.reset();
-      this.startNewAggregation(eventClass, confidence);
-    }
-
-    return this.getAggregation() as TemporalAggregation;
-  }
-
-  private startNewAggregation(eventClass: SoundEventClass, confidence: number) {
-    if (confidence >= this.threshold) {
-      this.currentAggregation = {
-        id: generateId(),
-        eventClass,
-        windows: [{
+      this.windows = [
+        {
           windowIndex: 0,
-          eventClass,
+          eventClass: result.state.eventClass,
           confidence,
-          timestamp: new Date()
-        }],
-        averageConfidence: confidence,
-        isThresholdReached: this.windowsRequired === 1,
-        thresholdUsed: this.threshold,
-        windowsRequired: this.windowsRequired
-      };
+          timestamp: new Date(),
+        },
+      ];
+      this.aggregationId = generateId();
     }
+
+    return {
+      id: this.aggregationId ?? (this.aggregationId = generateId()),
+      eventClass: result.state.eventClass,
+      windows: this.windows,
+      averageConfidence: result.averageConfidence,
+      isThresholdReached: result.isConfirmed,
+      thresholdUsed: this.threshold,
+      windowsRequired: this.windowsRequired,
+    };
   }
 
   reset(): void {
-    this.currentAggregation = null;
+    this.streak = initStreak<SoundEventClass>();
+    this.windows = [];
+    this.aggregationId = null;
   }
 
   getAggregation(): TemporalAggregation | null {
-    return this.currentAggregation;
+    if (this.streak.eventClass === null || this.windows.length === 0) return null;
+    return {
+      id: this.aggregationId ?? generateId(),
+      eventClass: this.streak.eventClass,
+      windows: this.windows,
+      averageConfidence:
+        this.streak.confidences.reduce((a, b) => a + b, 0) / this.streak.confidences.length,
+      isThresholdReached: this.windows.length >= this.windowsRequired,
+      thresholdUsed: this.threshold,
+      windowsRequired: this.windowsRequired,
+    };
   }
 }
 

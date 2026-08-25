@@ -8,6 +8,7 @@ import { ClassificationDisplay } from '../components/audio/ClassificationDisplay
 import { TemporalDisplay } from '../components/audio/TemporalDisplay';
 import { classifyAudio } from '../services/audioClassifier';
 import { TemporalAggregatorService } from '../services/temporalAggregator';
+import { createEventFromClassification, recordEvent } from '../services/eventPipeline';
 import { SOUND_CLASS_LABELS } from '../types';
 
 // How much recent audio (seconds) we keep in the rolling buffer that gets
@@ -58,6 +59,10 @@ export const LiveListen: React.FC = () => {
   const ringFilledRef = useRef(false);
 
   const aggregatorRef = useRef(new TemporalAggregatorService(3, 0.6));
+  // Tracks which confirmed streak (by aggregation id) we've already
+  // recorded a real event for, so a long sustained streak doesn't create
+  // a duplicate event on every 1.6s re-classification tick.
+  const alertedAggregationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (navigator.permissions && navigator.permissions.query) {
@@ -102,6 +107,34 @@ export const LiveListen: React.FC = () => {
       setClassification(result);
       const agg = aggregatorRef.current.addWindow(result.eventClass, result.confidence);
       setTemporalAggregation(agg);
+
+      // Real classification result -> real event, through the exact same
+      // pipeline Audio Upload and the simulated-sensor path use. Fires
+      // once per confirmed streak, not on every re-classification tick.
+      // Skipped if the classifier fell all the way through to its
+      // last-resort random placeholder (result.isSimulated) — that path
+      // exists only so the UI never crashes on an unusable buffer, and
+      // must never be recorded as a real detection.
+      if (!result.isSimulated && agg?.isThresholdReached && agg.id !== alertedAggregationIdRef.current) {
+        alertedAggregationIdRef.current = agg.id;
+        const event = createEventFromClassification({
+          eventClass: agg.eventClass,
+          confidence: agg.averageConfidence,
+          source: { type: 'live-mic' },
+          model: {
+            provider: result.modelSource === 'heuristic' ? 'heuristic' : 'yamnet',
+            name: result.modelSource === 'heuristic' ? 'ARANYA-DSP-Heuristic-v1 (rule-based, offline)' : 'YAMNet (AudioSet, TensorFlow.js, pretrained)',
+          },
+          temporalConfirmation: {
+            windowsUsed: agg.windows.length,
+            windowsRequired: agg.windowsRequired,
+            threshold: agg.thresholdUsed,
+            isConfirmed: true,
+          },
+          timingPrecision: 'approximate',
+        });
+        recordEvent(event);
+      }
     } catch (err) {
       console.error('Classification error', err);
     } finally {
@@ -164,6 +197,7 @@ export const LiveListen: React.FC = () => {
       isListeningRef.current = true;
       setListening(true);
       aggregatorRef.current.reset();
+      alertedAggregationIdRef.current = null;
       setTemporalAggregation(null);
       setClassification(null);
       setSpectrogramData([]);

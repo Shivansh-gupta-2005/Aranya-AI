@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# Runtime model and media assets are binary.
+*.bin binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.pdf binary
+*.tflite binary
+*.h5 binary

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSensorStore } from '../stores/sensorStore';
+import { useEventStore } from '../stores/eventStore';
 import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
 import L from 'leaflet';
@@ -30,6 +31,7 @@ export default function SensorDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { nodes, initialize, forceSync } = useSensorStore();
+  const { events } = useEventStore();
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
@@ -40,6 +42,7 @@ export default function SensorDetails() {
   }, [nodes, initialize]);
 
   const node = nodes.find(n => n.id === id);
+  const detectionHistory = node ? events.filter((e) => e.source.sensorId === node.id) : [];
 
   if (!node) {
     return (
@@ -113,7 +116,7 @@ export default function SensorDetails() {
               <Activity size={18} className="text-forest-500" /> Detection History
             </h3>
             
-            {node.detectionHistory.length === 0 ? (
+            {detectionHistory.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-gray-500">
                 <AlertTriangle size={24} className="mb-2 opacity-50" />
                 <p>No recent detections at this node.</p>
@@ -130,9 +133,9 @@ export default function SensorDetails() {
                     </tr>
                   </thead>
                   <tbody>
-                    {node.detectionHistory.map(evt => (
-                      <tr key={evt.id} className="border-b border-canopy-800/50 hover:bg-canopy-800/20 transition-colors">
-                        <td className="py-3 text-sm text-gray-300">{formatTimestamp(evt.timestamp)}</td>
+                    {detectionHistory.map(evt => (
+                      <tr key={evt.id} className="border-b border-canopy-800/50 hover:bg-canopy-800/20 transition-colors cursor-pointer" onClick={() => navigate(`/incidents/${evt.id}`)}>
+                        <td className="py-3 text-sm text-gray-300">{formatTimestamp(new Date(evt.detectedAt))}</td>
                         <td className="py-3 font-medium" style={{color: SOUND_CLASS_COLORS[evt.eventClass] || '#fff'}}>
                           {SOUND_CLASS_LABELS[evt.eventClass]}
                         </td>
@@ -198,17 +201,17 @@ export default function SensorDetails() {
                 </div>
               </div>
                <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-200">Sync Status</div>
-                  <div className="text-xs text-gray-400">Parameters synchronized</div>
+                  <div className="text-sm font-semibold text-gray-200">Deployment Type</div>
+                  <div className="text-xs text-gray-400">Simulated node (prototype) — no physical edge hardware attached</div>
                 </div>
               </div>
                <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <div className="w-2 h-2 rounded-full bg-gray-500"></div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-200">AI Model Version</div>
-                  <div className="text-xs text-gray-400">MobileNetV3-Edge (v2.4)</div>
+                  <div className="text-sm font-semibold text-gray-200">On-device Model</div>
+                  <div className="text-xs text-gray-400">None — real detections in this prototype run in-browser (Audio Upload / Live Listen), not on this simulated node</div>
                 </div>
               </div>
             </div>

@@ -1,7 +1,28 @@
-import { DetectionEvent, SensorNode, SoundEventClass, generateId } from '../types';
+import { SensorNode, SoundEventClass } from '../types';
+
+// ============================================================
+// SIMULATED sensor network — clearly labeled as such everywhere it
+// surfaces in the UI. Models node telemetry (battery/signal/temp
+// drift) for 5 fictional forest nodes. Does NOT create AranyaEvents
+// itself — callers (DemoMode, sensorStore) build real events via
+// services/eventPipeline.ts using the node info this returns, so
+// simulated-sensor events flow through the exact same event pipeline
+// as real upload/live-mic detections.
+// ============================================================
+
+interface RecentTrigger {
+  sensorId: string;
+  eventClass: SoundEventClass;
+  confidence: number;
+  timestamp: Date;
+}
 
 export class SensorSimulatorService {
   private nodes: SensorNode[] = [];
+  // Short-lived buffer of recent simulated triggers, used only for the
+  // multi-node weighted-fusion math below — NOT persisted event history
+  // (that lives in useEventStore).
+  private recentTriggers: RecentTrigger[] = [];
 
   constructor() {
     this.initializeNodes();
@@ -20,7 +41,6 @@ export class SensorSimulatorService {
         status: 'online',
         lastHeartbeat: new Date(),
         uptime: 120,
-        detectionHistory: [],
         isSimulated: true
       },
       {
@@ -34,7 +54,6 @@ export class SensorSimulatorService {
         status: 'online',
         lastHeartbeat: new Date(),
         uptime: 450,
-        detectionHistory: [],
         isSimulated: true
       },
       {
@@ -48,7 +67,6 @@ export class SensorSimulatorService {
         status: 'warning',
         lastHeartbeat: new Date(),
         uptime: 900,
-        detectionHistory: [],
         isSimulated: true
       },
       {
@@ -62,7 +80,6 @@ export class SensorSimulatorService {
         status: 'online',
         lastHeartbeat: new Date(),
         uptime: 20,
-        detectionHistory: [],
         isSimulated: true
       },
       {
@@ -76,7 +93,6 @@ export class SensorSimulatorService {
         status: 'online',
         lastHeartbeat: new Date(),
         uptime: 300,
-        detectionHistory: [],
         isSimulated: true
       }
     ];
@@ -86,13 +102,17 @@ export class SensorSimulatorService {
     return [...this.nodes];
   }
 
+  getNode(nodeId: string): SensorNode | undefined {
+    return this.nodes.find((n) => n.id === nodeId);
+  }
+
   updateNodeStatus(): SensorNode[] {
     this.nodes = this.nodes.map(node => {
       // Simulate slight variations
       const batteryDrain = Math.random() * 0.1; // slow drain
       const tempVariation = (Math.random() - 0.5) * 1.5;
       const newTemp = Math.max(22, Math.min(38, node.temperature + tempVariation));
-      
+
       const newBattery = Math.max(0, node.battery - batteryDrain);
       let newStatus = node.status;
       if (newBattery < 10 || node.signalStrength < 20) newStatus = 'critical';
@@ -110,52 +130,55 @@ export class SensorSimulatorService {
     return this.getNodes();
   }
 
-  triggerDetection(nodeId: string, eventClass: SoundEventClass, confidence: number): DetectionEvent | null {
-    const nodeIndex = this.nodes.findIndex(n => n.id === nodeId);
-    if (nodeIndex === -1) return null;
+  /**
+   * Records a simulated detection trigger against a node's telemetry
+   * (for the multi-node fusion buffer) and returns the node so the
+   * caller can build a real AranyaEvent via eventPipeline with correct
+   * source/location — this method does not create events itself.
+   */
+  triggerDetection(nodeId: string, eventClass: SoundEventClass, confidence: number): SensorNode | null {
+    const node = this.nodes.find((n) => n.id === nodeId);
+    if (!node) return null;
 
-    const node = this.nodes[nodeIndex];
-    let severity: any = 'low';
-    if (confidence >= 0.9) severity = 'critical';
-    else if (confidence >= 0.75) severity = 'high';
-    else if (confidence >= 0.5) severity = 'medium';
-    
-    if (eventClass === 'wildlife' || eventClass === 'background') severity = 'low';
+    this.recentTriggers.push({ sensorId: nodeId, eventClass, confidence, timestamp: new Date() });
+    // Keep the buffer bounded.
+    if (this.recentTriggers.length > 200) this.recentTriggers.shift();
 
-    const detection: DetectionEvent = {
-      id: generateId(),
-      sensorId: node.id,
-      eventClass,
-      confidence,
-      severity,
-      timestamp: new Date(),
-      duration: 5, // 5 second sample
-      isSimulated: true,
-      location: node.location
-    };
-
-    const updatedNode = { ...node, detectionHistory: [detection, ...node.detectionHistory].slice(0, 50) };
-    this.nodes[nodeIndex] = updatedNode;
-    return detection;
+    node.lastHeartbeat = new Date();
+    return node;
   }
 
+  /**
+   * Weighted multi-node confirmation, per the PDF's fusion formula
+   * (C = Σ wᵢCᵢ). Reads the recent-trigger buffer, not persisted event
+   * history. Only meaningful when Demo Mode's "Full Forest Incident"
+   * scenario has triggered the SAME class across multiple simulated
+   * nodes within the window — otherwise returns a low/zero value.
+   */
   getMultiNodeConfirmation(eventClass: SoundEventClass): number {
-    // Collect all detections for this event class across nodes within last 30 seconds
     const thirtySecsAgo = new Date(Date.now() - 30000);
-    
-    let combinedConfidence = 0;
-    const weights = [0.5, 0.3, 0.2]; // Weighted fusion: main node, 2nd nearest, 3rd nearest
-    
-    const relevantDetections = this.nodes
-      .flatMap(n => n.detectionHistory)
-      .filter(d => d.eventClass === eventClass && d.timestamp >= thirtySecsAgo)
+    const weights = [0.5, 0.3, 0.2]; // primary node, 2nd nearest, 3rd nearest
+
+    const relevant = this.recentTriggers
+      .filter((t) => t.eventClass === eventClass && t.timestamp >= thirtySecsAgo)
       .sort((a, b) => b.confidence - a.confidence);
 
-    for (let i = 0; i < Math.min(relevantDetections.length, weights.length); i++) {
-      combinedConfidence += relevantDetections[i].confidence * weights[i];
+    let combined = 0;
+    for (let i = 0; i < Math.min(relevant.length, weights.length); i++) {
+      combined += relevant[i].confidence * weights[i];
     }
-    
-    return Math.min(1.0, combinedConfidence);
+    return Math.min(1.0, combined);
+  }
+
+  getContributingNodeIds(eventClass: SoundEventClass): string[] {
+    const thirtySecsAgo = new Date(Date.now() - 30000);
+    return Array.from(
+      new Set(
+        this.recentTriggers
+          .filter((t) => t.eventClass === eventClass && t.timestamp >= thirtySecsAgo)
+          .map((t) => t.sensorId)
+      )
+    );
   }
 
   forceSyncNode(nodeId: string): void {
@@ -180,6 +203,12 @@ export class SensorSimulatorService {
       status: newStatus as any,
       lastHeartbeat: new Date()
     };
+  }
+
+  /** Re-initializes node telemetry to fresh starting values and clears the fusion trigger buffer — used by Reset Demo. */
+  resetTelemetry(): void {
+    this.initializeNodes();
+    this.recentTriggers = [];
   }
 }
 

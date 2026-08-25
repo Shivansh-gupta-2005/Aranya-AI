@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSensorStore } from '../stores/sensorStore';
+import { useEventStore } from '../stores/eventStore';
 import { SensorStatus } from '../types';
 import { Activity, Battery, MapPin, Radio, Thermometer, Droplets, Clock } from 'lucide-react';
 
 export default function SensorNetwork() {
   const { nodes, initialize } = useSensorStore();
+  const { events } = useEventStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,7 +19,7 @@ export default function SensorNetwork() {
   const onlineNodes = nodes.filter(n => n.status === 'online').length;
   const avgBattery = nodes.length > 0 ? Math.round(nodes.reduce((acc, n) => acc + n.battery, 0) / nodes.length) : 0;
   const avgSignal = nodes.length > 0 ? Math.round(nodes.reduce((acc, n) => acc + n.signalStrength, 0) / nodes.length) : 0;
-  const totalEvents = nodes.reduce((acc, n) => acc + n.detectionHistory.length, 0);
+  const totalEvents = events.filter((e) => e.source.type === 'simulated-sensor').length;
 
   const getStatusColor = (status: SensorStatus) => {
     switch (status) {

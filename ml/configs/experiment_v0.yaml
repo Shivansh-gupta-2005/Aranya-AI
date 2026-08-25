@@ -1,0 +1,36 @@
+experiment:
+  name: aranya_embedding_baseline_v0
+  seed: 20260823
+  target_recording_groups_per_class: 60
+  target_is_non_blocking: true
+  labels: [gunshot, chainsaw_logging, metal_tool_activity, background]
+  background_subtypes: [forest_ambience, birds_animals, wind, rain, vehicles, machinery, human_movement, generic_impacts, other_environmental_noise]
+
+audio:
+  sample_rate_hz: 16000
+  channels: 1
+  window_seconds: 0.96
+  hop_seconds: 0.48
+  split_before_windowing: true
+
+paths:
+  manifest: ml/data/manifest.csv
+  split_manifest: ml/data/manifest.split.csv
+  embeddings: ml/data/embeddings.npz
+  artifacts: ml/artifacts
+  reports: ml/reports
+
+split:
+  train: 0.70
+  validation: 0.15
+  test: 0.15
+  group_field: recording_group_id
+
+models:
+  baseline: current_yamnet_audioset_mapping
+  logistic: yamnet_embedding_logistic_regression
+  mlp: yamnet_embedding_small_mlp
+  embedding_dimensions: 1024
+
+evaluation:
+  metrics: [macro_precision, macro_recall, macro_f1, per_class_precision, per_class_recall, confusion_matrix, false_positive_episodes_per_background_hour, inference_latency_ms, detection_latency_ms, model_size_bytes]

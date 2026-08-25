@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, LayersControl, LayerGroup } from 'react-leaflet';
 import L from 'leaflet';
 import { useSensorStore } from '../stores/sensorStore';
-import { useAlertStore } from '../stores/alertStore';
-import { SOUND_CLASS_COLORS, SensorStatus } from '../types';
+import { useEventStore } from '../stores/eventStore';
+import { SOUND_CLASS_COLORS, SOUND_CLASS_LABELS, SensorStatus } from '../types';
 import 'leaflet/dist/leaflet.css';
 
 // Fix Leaflet's default icon issue
@@ -30,10 +30,10 @@ const createCustomIcon = (status: SensorStatus, name: string) => {
     html: `
       <div style="display: flex; flex-direction: column; align-items: center;">
         <div style="
-          width: 16px; 
-          height: 16px; 
-          background-color: ${color}; 
-          border-radius: 50%; 
+          width: 16px;
+          height: 16px;
+          background-color: ${color};
+          border-radius: 50%;
           border: 2px solid white;
           box-shadow: 0 0 10px ${color};
         "></div>
@@ -89,10 +89,33 @@ const createPulseIcon = (color: string) => {
   });
 };
 
+const createLocalizationIcon = () => {
+  return L.divIcon({
+    className: 'localization-marker',
+    html: `<div style="width: 14px; height: 14px; background: #a855f7; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 12px #a855f7;"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+};
+
+// Illustrative acoustic-coverage radius. This is a rough planning
+// assumption, NOT a precise detection boundary — actual range depends on
+// sound type/intensity, terrain, vegetation, wind, humidity, background
+// noise, and sensor sensitivity. Area shown wherever needed uses the
+// correct π·r² (not r² or 2·π·r) — see the tooltip text below.
+const COVERAGE_RADIUS_METERS = 1500;
+const coverageAreaKm2 = (Math.PI * (COVERAGE_RADIUS_METERS / 1000) ** 2).toFixed(2);
+
 export default function ForestMap() {
   const { nodes, initialize } = useSensorStore();
-  const { getActiveAlerts } = useAlertStore();
-  const activeAlerts = getActiveAlerts();
+  const { getActiveEvents } = useEventStore();
+  const activeEvents = getActiveEvents();
+
+  // Only events with a real location (simulated-sensor sourced, at the
+  // reporting node's own coordinate) can be plotted — real upload/live-mic
+  // events have no GPS and are never assigned a fabricated placeholder.
+  const locatableEvents = activeEvents.filter((e) => e.location);
+  const simulatedLocalizationEvents = activeEvents.filter((e) => e.localization.status === 'simulated');
 
   useEffect(() => {
     if (nodes.length === 0) {
@@ -103,21 +126,21 @@ export default function ForestMap() {
   const mapCenter: [number, number] = [21.1497, 79.0830]; // Indian forest area
 
   return (
-    <div className="h-full w-full flex flex-col glass-card relative">
+    <div className="h-full min-h-[600px] w-full flex flex-col glass-card relative">
       <div className="p-4 border-b border-canopy-700 flex justify-between items-center z-10 bg-canopy-900/90 rounded-t-xl">
         <h2 className="text-xl font-bold text-gray-100">Live Forest Map</h2>
         <div className="flex gap-4 items-center">
-          <div className="badge-purple">Simulated Data</div>
+          <div className="badge-purple">Simulated Sensor Network</div>
         </div>
       </div>
-      
-      <div className="flex-1 relative rounded-b-xl overflow-hidden">
-        <MapContainer center={mapCenter} zoom={15} style={{ height: '100%', width: '100%' }}>
+
+      <div className="flex-1 min-h-[520px] relative rounded-b-xl overflow-hidden">
+        <MapContainer center={mapCenter} zoom={15} style={{ height: '600px', width: '100%' }}>
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             attribution="&copy; <a href='https://carto.com/'>Carto</a>"
           />
-          
+
           <LayersControl position="topright">
             <LayersControl.Overlay checked name="Sensor Nodes">
               <LayerGroup>
@@ -131,13 +154,9 @@ export default function ForestMap() {
                       <div className="p-2 bg-canopy-800 text-gray-200 rounded">
                         <h3 className="font-bold border-b border-canopy-700 pb-1 mb-2">{node.name}</h3>
                         <p className="text-sm mb-1">Status: <span style={{color: getStatusColor(node.status)}}>{node.status.toUpperCase()}</span></p>
-                        <p className="text-sm mb-1">Battery: {node.battery}%</p>
+                        <p className="text-sm mb-1">Battery: {node.battery.toFixed(0)}%</p>
                         <p className="text-sm mb-1">Zone: {node.location.zone}</p>
-                        {node.detectionHistory.length > 0 && (
-                          <p className="text-xs text-gray-400 mt-2">
-                            Last Event: {node.detectionHistory[0].eventClass}
-                          </p>
-                        )}
+                        <p className="text-xs text-gray-500 mt-2">Simulated prototype node</p>
                       </div>
                     </Popup>
                   </Marker>
@@ -145,24 +164,29 @@ export default function ForestMap() {
               </LayerGroup>
             </LayersControl.Overlay>
 
-            <LayersControl.Overlay checked name="Coverage Areas">
+            <LayersControl.Overlay checked name="Estimated Acoustic Coverage">
               <LayerGroup>
                 {nodes.map(node => (
                   <Circle
                     key={`coverage-${node.id}`}
                     center={[node.location.lat, node.location.lng]}
-                    radius={1500} // 1.5km - labeled as experimental
+                    radius={COVERAGE_RADIUS_METERS}
                     pathOptions={{
                       color: '#6b7280',
                       fillColor: '#6b7280',
-                      fillOpacity: 0.1,
+                      fillOpacity: 0.08,
                       dashArray: '5, 10',
                       weight: 1
                     }}
                   >
                     <Popup>
-                      <div className="bg-canopy-800 text-gray-200 p-1">
-                        <p className="text-xs">Experimental/Planning Coverage</p>
+                      <div className="bg-canopy-800 text-gray-200 p-1 text-xs">
+                        <p className="font-semibold mb-1">Illustrative coverage assumption</p>
+                        <p>Radius: {(COVERAGE_RADIUS_METERS / 1000).toFixed(1)} km · Area: π·r² ≈ {coverageAreaKm2} km²</p>
+                        <p className="text-gray-400 mt-1">
+                          Not a precision detection boundary — real range depends on sound type, terrain,
+                          vegetation, wind, humidity and sensor sensitivity.
+                        </p>
                       </div>
                     </Popup>
                   </Circle>
@@ -170,20 +194,27 @@ export default function ForestMap() {
               </LayerGroup>
             </LayersControl.Overlay>
 
-            <LayersControl.Overlay checked name="Active Alerts">
+            <LayersControl.Overlay checked name="Active Events (with location)">
               <LayerGroup>
-                {activeAlerts.map(alert => (
-                  <React.Fragment key={`alert-${alert.id}`}>
+                {locatableEvents.map(event => (
+                  <React.Fragment key={`event-${event.id}`}>
                     <Marker
-                      position={[alert.location.lat, alert.location.lng]}
-                      icon={createPulseIcon(SOUND_CLASS_COLORS[alert.eventClass] || '#ef4444')}
-                    />
+                      position={[event.location!.lat, event.location!.lng]}
+                      icon={createPulseIcon(SOUND_CLASS_COLORS[event.eventClass] || '#ef4444')}
+                    >
+                      <Popup>
+                        <div className="bg-canopy-800 text-gray-200 p-1 text-xs">
+                          <p className="font-semibold">{SOUND_CLASS_LABELS[event.eventClass]}</p>
+                          <p>{(event.confidence * 100).toFixed(0)}% confidence · simulated sensor report</p>
+                        </div>
+                      </Popup>
+                    </Marker>
                     <Circle
-                      center={[alert.location.lat, alert.location.lng]}
+                      center={[event.location!.lat, event.location!.lng]}
                       radius={300}
                       pathOptions={{
-                        color: SOUND_CLASS_COLORS[alert.eventClass] || '#ef4444',
-                        fillColor: SOUND_CLASS_COLORS[alert.eventClass] || '#ef4444',
+                        color: SOUND_CLASS_COLORS[event.eventClass] || '#ef4444',
+                        fillColor: SOUND_CLASS_COLORS[event.eventClass] || '#ef4444',
                         fillOpacity: 0.2,
                         weight: 0
                       }}
@@ -192,37 +223,53 @@ export default function ForestMap() {
                 ))}
               </LayerGroup>
             </LayersControl.Overlay>
-            
-            <LayersControl.Overlay checked name="Risk Zones">
+
+            <LayersControl.Overlay checked name="Simulated Multi-Node Localization">
               <LayerGroup>
-                 <Circle
-                    center={[21.152, 79.088]}
-                    radius={800}
-                    pathOptions={{
-                      color: '#ef4444',
-                      fillColor: '#ef4444',
-                      fillOpacity: 0.1,
-                      weight: 1,
-                      dashArray: '4'
-                    }}
-                  />
+                {simulatedLocalizationEvents.map((event) => {
+                  const loc = event.localization;
+                  if (loc.status !== 'simulated') return null;
+                  return (
+                    <React.Fragment key={`loc-${event.id}`}>
+                      <Marker position={[loc.estimatedLat, loc.estimatedLng]} icon={createLocalizationIcon()}>
+                        <Popup>
+                          <div className="bg-canopy-800 text-gray-200 p-1 text-xs max-w-[200px]">
+                            <p className="font-semibold text-purple-300 mb-1">SIMULATED LOCALIZATION</p>
+                            <p>{loc.description}</p>
+                            <p className="text-gray-400 mt-1">± {loc.uncertaintyMeters}m · {(loc.confidence * 100).toFixed(0)}% localization confidence</p>
+                            <p className="text-gray-500 mt-1">Nodes: {loc.contributingSensorIds.join(', ')}</p>
+                          </div>
+                        </Popup>
+                      </Marker>
+                      <Circle
+                        center={[loc.estimatedLat, loc.estimatedLng]}
+                        radius={loc.uncertaintyMeters}
+                        pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.12, dashArray: '3,6', weight: 1.5 }}
+                      />
+                    </React.Fragment>
+                  );
+                })}
               </LayerGroup>
             </LayersControl.Overlay>
-
           </LayersControl>
         </MapContainer>
-        
+
         {/* Legend */}
-        <div className="absolute bottom-4 left-4 z-[1000] glass-card p-3 rounded-lg bg-canopy-900/80 border border-canopy-700 pointer-events-auto shadow-lg">
+        <div className="absolute bottom-4 left-4 z-[1000] glass-card p-3 rounded-lg bg-canopy-900/80 border border-canopy-700 pointer-events-auto shadow-lg max-w-[260px]">
           <h4 className="text-xs font-bold text-gray-300 uppercase mb-2">Legend</h4>
           <div className="space-y-1.5 text-xs text-gray-400">
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-forest-500"></div> Online Node</div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500"></div> Warning Node</div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"></div> Critical Node</div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-0 border-t border-dashed border-gray-500"></div> Experimental Coverage
+              <div className="w-4 h-0 border-t border-dashed border-gray-500"></div> Illustrative coverage
             </div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-purple-500"></div> Simulated localization</div>
           </div>
+          <p className="text-[10px] text-gray-500 mt-3 pt-2 border-t border-canopy-700/50 leading-relaxed">
+            Localization requires multiple synchronized sensors detecting the same event (production
+            capability). Run Demo Mode's "Full Forest Incident" to see a simulated example.
+          </p>
         </div>
       </div>
       <style>{`

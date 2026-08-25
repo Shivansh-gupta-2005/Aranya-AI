@@ -11,16 +11,24 @@ export type SoundEventClass =
   | 'background'
   | 'gunshot'
   | 'tree_fall'
-  | 'fire_anomaly';
+  | 'fire_anomaly'
+  | 'metal_clank';
 
 export const SOUND_CLASS_LABELS: Record<SoundEventClass, string> = {
   chainsaw: 'Chainsaw / Tree-cutting-like',
   vehicle: 'Vehicle / Engine',
-  wildlife: 'Wildlife Vocalization',
+  // Displayed as "Forest Ambience" everywhere in the app — this is the
+  // ONE place that label is defined. Internally still the real model
+  // class 'wildlife' (bird/animal/insect AudioSet classes); relabeled
+  // for display because these are informational/contextual detections,
+  // not a problem requiring a ranger's attention — see
+  // eventPipeline.isAlertEligible for the alert-policy side of this.
+  wildlife: 'Forest Ambience',
   background: 'Background / Natural',
   gunshot: 'Gunshot-like (Experimental)',
   tree_fall: 'Tree-impact / Falling-tree-like (Experimental)',
   fire_anomaly: 'Fire-related Acoustic Anomaly (Experimental)',
+  metal_clank: 'Metal Clanking / Metallic Activity (Experimental)',
 };
 
 export const SOUND_CLASS_COLORS: Record<SoundEventClass, string> = {
@@ -31,6 +39,7 @@ export const SOUND_CLASS_COLORS: Record<SoundEventClass, string> = {
   gunshot: '#dc2626',
   tree_fall: '#d97706',
   fire_anomaly: '#f97316',
+  metal_clank: '#a855f7',
 };
 
 // ---- Severity ----
@@ -93,87 +102,12 @@ export interface SensorNode {
   status: SensorStatus;
   lastHeartbeat: Date;
   uptime: number; // hours
-  detectionHistory: DetectionEvent[];
   isSimulated: boolean;
 }
 
-// ---- Detection Event ----
-export interface DetectionEvent {
-  id: string;
-  sensorId: string;
-  eventClass: SoundEventClass;
-  confidence: number;
-  severity: Severity;
-  timestamp: Date;
-  duration: number; // seconds
-  isSimulated: boolean;
-  location: {
-    lat: number;
-    lng: number;
-    zone: string;
-  };
-  audioData?: Float32Array;
-}
-
-// ---- Alert ----
-export type AlertStatus = 'active' | 'acknowledged' | 'verified' | 'false_alarm' | 'resolved';
-
-export interface Alert {
-  id: string;
-  eventClass: SoundEventClass;
-  confidence: number;
-  severity: Severity;
-  sensorId: string;
-  sensorName: string;
-  location: {
-    lat: number;
-    lng: number;
-    zone: string;
-  };
-  timestamp: Date;
-  status: AlertStatus;
-  isSimulated: boolean;
-  description: string;
-  temporalAggregation?: TemporalAggregation;
-  contributingSensors?: string[];
-  timeline: TimelineEntry[];
-}
-
-export interface TimelineEntry {
-  timestamp: Date;
-  action: string;
-  detail: string;
-  actor?: string;
-}
-
-// ---- Incident (detailed alert) ----
-export interface Incident extends Alert {
-  audioUrl?: string;
-  spectrogramData?: number[][];
-  waveformData?: number[];
-  verificationNotes?: string;
-  resolvedAt?: Date;
-  resolvedBy?: string;
-  investigatorNotes?: string;
-}
-
-// ---- Map types ----
-export interface RiskZone {
-  id: string;
-  name: string;
-  center: { lat: number; lng: number };
-  radius: number; // meters
-  riskLevel: Severity;
-  description: string;
-}
-
-export interface CoverageArea {
-  id: string;
-  sensorId: string;
-  center: { lat: number; lng: number };
-  radius: number; // meters — labeled as experimental/planning
-  label: string;
-}
+// NOTE: DetectionEvent/Alert/AlertStatus/TimelineEntry/Incident/RiskZone/
+// CoverageArea (pre-rebuild types) have been removed — superseded by the
+// single canonical AranyaEvent type in ./event.ts.
 
 // ---- Analytics ----
 export interface AnalyticsData {
@@ -188,8 +122,6 @@ export interface AnalyticsData {
 }
 
 // ---- Demo ----
-export type DemoScenario = 'chainsaw' | 'vehicle' | 'wildlife' | 'gunshot' | 'fire';
-
 export interface DemoStep {
   phase: 'event' | 'analysis' | 'confidence' | 'temporal' | 'sensor' | 'map' | 'alert' | 'incident';
   label: string;
@@ -221,15 +153,24 @@ export interface NavItem {
 export const ALERT_DESCRIPTIONS: Record<SoundEventClass, string> = {
   chainsaw: 'Potential chainsaw activity detected',
   vehicle: 'Vehicle / engine sound detected in monitored area',
-  wildlife: 'Wildlife vocalization detected',
+  wildlife: 'Natural forest ambience (wildlife/bird/insect sounds) — informational, not a threat',
   background: 'Background environmental sound',
   gunshot: 'Potential gunshot-like sound detected (experimental)',
   tree_fall: 'Potential tree-impact / falling-tree-like sound (experimental)',
-  fire_anomaly: 'Fire-related acoustic/environmental anomaly — verify',
+  fire_anomaly: 'Fire-related acoustic anomaly — verify',
+  metal_clank: 'Metallic clanking/clattering sound detected (experimental)',
 };
 
-export function getSeverityFromClass(eventClass: SoundEventClass, confidence: number): Severity {
+export function getSeverityFromClass(
+  eventClass: SoundEventClass,
+  confidence: number,
+  evidenceStrength?: 'weak' | 'moderate' | 'strong'
+): Severity {
   if (eventClass === 'background' || eventClass === 'wildlife') return 'low';
+  // Weak evidence on an inherently ambiguous class must never present as
+  // urgent, regardless of the raw confidence number — see
+  // eventPipeline.isAlertEligible for the companion alert-gating rule.
+  if ((eventClass === 'fire_anomaly' || eventClass === 'metal_clank') && evidenceStrength === 'weak') return 'low';
   if (confidence >= 0.9) return 'critical';
   if (confidence >= 0.75) return 'high';
   if (confidence >= 0.5) return 'medium';

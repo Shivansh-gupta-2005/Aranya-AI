@@ -1,0 +1,15 @@
+# Python 3.11 or 3.12. Do not install automatically during scaffolding.
+tensorflow==2.19.0
+tf-keras==2.19.0
+numpy>=1.26,<3
+pandas>=2.0
+scikit-learn>=1.4
+soundfile>=0.12
+scipy>=1.11
+librosa>=0.10
+resampy>=0.4
+matplotlib>=3.8
+seaborn>=0.13
+joblib>=1.3
+pyyaml>=6
+tqdm>=4.66

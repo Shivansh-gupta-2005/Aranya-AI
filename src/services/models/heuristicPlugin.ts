@@ -1,4 +1,4 @@
-import { AudioModelPlugin } from './types';
+import { AudioModelPlugin, FrameScore } from './types';
 import { ClassificationResult, SoundEventClass, generateId } from '../../types';
 import { hannWindow, magnitudeSpectrum } from '../fft';
 
@@ -26,6 +26,15 @@ const FRAME_SIZE = 1024;
 const HOP_SIZE = 512;
 const MAX_HEURISTIC_CONFIDENCE = 0.78;
 const MIN_HEURISTIC_CONFIDENCE = 0.35;
+
+// Outer chunking window for sequence/timeline analysis (distinct from the
+// inner FRAME_SIZE/HOP_SIZE used by analyzeSignal's own feature-extraction
+// framing, which stays unchanged and runs inside each outer chunk below).
+// 1.0s/0.5s balances localizing short transients (e.g. a gunshot) against
+// keeping enough samples per chunk for analyzeSignal's averaging to be
+// stable. This is a chosen DSP parameter, not a measured value.
+const SEQ_WINDOW_SECONDS = 1.0;
+const SEQ_HOP_SECONDS = 0.5;
 
 interface FrameFeatures {
   rms: number;
@@ -190,38 +199,61 @@ function scoreClasses(f: Features): Record<SoundEventClass, number> {
       0.5 * sparseTransients +
       0.3 * f.veryHighRatio +
       0.2 * f.flatness,
+    // Metallic clanking: impulsive like gunshot/tree_fall, but with more
+    // tonal "ring" (resonance) than a broadband gunshot report and more
+    // high-frequency energy than a duller wood impact.
+    metal_clank:
+      0.4 * impulsive +
+      0.3 * f.veryHighRatio +
+      0.3 * clamp01(1 - f.flatness),
   };
 
   return scores;
 }
 
-function toClassificationResult(
-  scores: Record<SoundEventClass, number>,
-  processingTimeMs: number
-): ClassificationResult {
-  const entries = Object.entries(scores) as [SoundEventClass, number][];
+/**
+ * Normalizes raw per-class heuristic scores into a probability-like
+ * distribution, then rescales the winner into a believable, capped band
+ * (a rule-based heuristic should never claim near-certainty) based on how
+ * far it leads the runner-up. Shared by both the single-shot predict()
+ * result and the per-frame predictSequence() timeline so a given signal
+ * is scored consistently regardless of which entry point is used.
+ */
+function scaleHeuristicScores(
+  rawScores: Record<SoundEventClass, number>
+): { top: SoundEventClass; scaled: Record<SoundEventClass, number> } {
+  const entries = Object.entries(rawScores) as [SoundEventClass, number][];
   const total = entries.reduce((a, [, v]) => a + v, 0) || 1;
 
   const normalized = entries
     .map(([eventClass, v]) => ({ eventClass, confidence: v / total }))
     .sort((a, b) => b.confidence - a.confidence);
 
-  const top = normalized[0];
-  // Rescale the winning confidence into a believable, capped band —
-  // heuristics should never claim near-certainty.
   const spread = normalized[0].confidence - (normalized[1]?.confidence ?? 0);
-  const scaledConfidence =
+  const scaledTop =
     MIN_HEURISTIC_CONFIDENCE +
     clamp01(spread * 2.2) * (MAX_HEURISTIC_CONFIDENCE - MIN_HEURISTIC_CONFIDENCE);
 
+  const scaled = {} as Record<SoundEventClass, number>;
+  normalized.forEach((entry, i) => {
+    scaled[entry.eventClass] = i === 0 ? scaledTop : entry.confidence * scaledTop;
+  });
+
+  return { top: normalized[0].eventClass, scaled };
+}
+
+function toClassificationResult(
+  scores: Record<SoundEventClass, number>,
+  processingTimeMs: number
+): ClassificationResult {
+  const { top, scaled } = scaleHeuristicScores(scores);
+  const ranked = (Object.entries(scaled) as [SoundEventClass, number][]).sort((a, b) => b[1] - a[1]);
+
   return {
     id: generateId(),
-    eventClass: top.eventClass,
-    confidence: scaledConfidence,
-    alternativePredictions: normalized.slice(1).map((a) => ({
-      eventClass: a.eventClass,
-      confidence: a.confidence * scaledConfidence,
-    })),
+    eventClass: top,
+    confidence: scaled[top],
+    alternativePredictions: ranked.slice(1).map(([eventClass, confidence]) => ({ eventClass, confidence })),
     timestamp: new Date(),
     isSimulated: false,
     processingTimeMs,
@@ -245,6 +277,37 @@ class HeuristicPlugin implements AudioModelPlugin {
     const scores = scoreClasses(features);
     const elapsed = performance.now() - start;
     return toClassificationResult(scores, Math.max(1, Math.round(elapsed)));
+  }
+
+  async predictSequence(audioData: Float32Array, sampleRate: number): Promise<FrameScore[]> {
+    if (!audioData || audioData.length === 0) {
+      throw new Error('Empty audio buffer — nothing to analyze.');
+    }
+
+    const windowSamples = Math.max(FRAME_SIZE, Math.round(SEQ_WINDOW_SECONDS * sampleRate));
+    const hopSamples = Math.max(1, Math.round(SEQ_HOP_SECONDS * sampleRate));
+
+    const frames: FrameScore[] = [];
+    for (let start = 0; start < audioData.length; start += hopSamples) {
+      const end = Math.min(start + windowSamples, audioData.length);
+      const chunk = audioData.subarray(start, end);
+      const features = analyzeSignal(chunk, sampleRate);
+      const rawScores = scoreClasses(features);
+      const { scaled } = scaleHeuristicScores(rawScores);
+
+      frames.push({
+        startTime: start / sampleRate,
+        endTime: end / sampleRate,
+        scores: scaled,
+        // Heuristic chunking is a chosen fixed hop, not a verified model
+        // framing constant — always tagged approximate.
+        timingPrecision: 'approximate',
+      });
+
+      if (end >= audioData.length) break;
+    }
+
+    return frames;
   }
 }
 

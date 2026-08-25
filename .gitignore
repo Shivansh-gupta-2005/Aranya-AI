@@ -1,1 +1,76 @@
-node_modules
+# Frontend / Node.js
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python / ML environments and caches
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local one-off conversion environments and non-runtime model sources
+tfjs-converter/
+yamnet-convert/
+models/yamnet-tf/
+
+# ML datasets: commit manifests, schemas, provenance, source code, and configs only
+ml/data/raw/
+ml/data/downloads/
+ml/data/external/
+ml/data/processed/
+ml/data/embeddings*/
+ml/data/*.npz
+ml/data/*.npy
+ml/data/*.parquet
+
+# Generated ML training and evaluation artifacts
+ml/artifacts/
+ml/checkpoints/
+ml/runs/
+ml/outputs/
+ml/reports/evaluation/
+ml/reports/benchmarks/
+ml/reports/figures/
+ml/reports/metrics*.json
+ml/reports/confusion_matrix*.*
+
+# IDE / OS / temporary files
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+*.bak
+*~
+
+# Keep public/models/yamnet/ tracked: it is the browser runtime model loaded by
+# tf.loadGraphModel('/models/yamnet/model.json'). Review future model assets
+# individually before adding them to normal Git or Git LFS.

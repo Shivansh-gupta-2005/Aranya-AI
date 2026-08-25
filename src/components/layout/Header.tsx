@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import { SimulatedBadge } from '../common/SimulatedBadge';
-import { useAlertStore } from '../../stores/alertStore';
+import { useEventStore } from '../../stores/eventStore';
 
 export const Header: React.FC = () => {
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const activeAlertsCount = useAlertStore((state) => state.getActiveAlerts().length);
+  const activeAlertsCount = useEventStore((state) => state.getActiveEvents().length);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);

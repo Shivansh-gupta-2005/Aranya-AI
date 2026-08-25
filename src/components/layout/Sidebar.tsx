@@ -1,25 +1,37 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  TreePine, 
-  LayoutDashboard, 
-  Mic, 
-  Upload, 
-  Radio, 
-  Map as MapIcon, 
-  Bell, 
-  BarChart3, 
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import {
+  TreePine,
+  LayoutDashboard,
+  Mic,
+  Upload,
+  Radio,
+  Map as MapIcon,
+  Bell,
+  BarChart3,
   Play,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RotateCcw,
 } from 'lucide-react';
-import { useAlertStore } from '../../stores/alertStore';
+import { useEventStore } from '../../stores/eventStore';
+import { resetDemoSession } from '../../services/sessionReset';
 
 export const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const getActiveAlerts = useAlertStore((state) => state.getActiveAlerts);
-  const activeAlertsCount = getActiveAlerts().length;
+  const navigate = useNavigate();
+  const getActiveEvents = useEventStore((state) => state.getActiveEvents);
+  const activeAlertsCount = getActiveEvents().length;
+
+  const handleResetDemo = () => {
+    const confirmed = window.confirm(
+      'Start a fresh demo session? This will clear current session data (detected events, alerts, incidents, feedback, and simulated sensor telemetry). Model files and app configuration are not affected.'
+    );
+    if (!confirmed) return;
+    resetDemoSession();
+    navigate('/');
+  };
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -85,6 +97,17 @@ export const Sidebar: React.FC = () => {
           );
         })}
       </nav>
+
+      <div className="px-3 pb-2">
+        <button
+          onClick={handleResetDemo}
+          title="Reset Demo"
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-amber-400 border border-amber-800/40 hover:bg-amber-950/30 hover:border-amber-600/50 transition-all ${collapsed ? 'justify-center' : ''}`}
+        >
+          <RotateCcw size={18} className="shrink-0" />
+          {!collapsed && <span className="font-medium text-sm whitespace-nowrap">Reset Demo</span>}
+        </button>
+      </div>
 
       <div className="p-4 border-t border-canopy-800 bg-canopy-900/50">
         <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>

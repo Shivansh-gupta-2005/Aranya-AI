@@ -1,11 +1,19 @@
-import { ClassificationResult, DemoScenario, SoundEventClass, generateId } from '../types';
-import { AudioModelPlugin } from './models/types';
+import { ClassificationResult, SoundEventClass, generateId } from '../types';
+import { AudioModelPlugin, FrameScore } from './models/types';
 import { yamnetPlugin } from './models/yamnetPlugin';
 import { heuristicPlugin } from './models/heuristicPlugin';
 
 // Re-exported for backward compatibility with anything importing the
 // plugin interface from this module.
 export type { AudioModelPlugin };
+
+export type ModelSource = 'yamnet' | 'heuristic';
+
+export interface SequenceClassificationResult {
+  frames: FrameScore[];
+  modelSource: ModelSource;
+  modelName: string;
+}
 
 /**
  * Real audio classification entry point used by Audio Upload and Live Listen.
@@ -57,60 +65,28 @@ export const classifyAudio = async (
   };
 };
 
-export const classifyForDemo = async (scenario: DemoScenario): Promise<ClassificationResult> => {
-  const delay = Math.random() * 600 + 200;
-  await new Promise((resolve) => setTimeout(resolve, delay));
-
-  let eventClass: SoundEventClass = 'background';
-  let minConf = 0;
-  let maxConf = 0;
-
-  switch (scenario) {
-    case 'chainsaw':
-      eventClass = 'chainsaw';
-      minConf = 0.87;
-      maxConf = 0.95;
-      break;
-    case 'vehicle':
-      eventClass = 'vehicle';
-      minConf = 0.82;
-      maxConf = 0.91;
-      break;
-    case 'wildlife':
-      eventClass = 'wildlife';
-      minConf = 0.78;
-      maxConf = 0.92;
-      break;
-    case 'gunshot':
-      eventClass = 'gunshot';
-      minConf = 0.71;
-      maxConf = 0.85;
-      break;
-    case 'fire':
-      eventClass = 'fire_anomaly';
-      minConf = 0.65;
-      maxConf = 0.80;
-      break;
+/**
+ * Real sliding-window/frame-based classification entry point used by Audio
+ * Upload's full-timeline analysis. Same YAMNet-first, heuristic-fallback
+ * cascade philosophy as classifyAudio() above, but preserves per-frame
+ * timing so multiple distinct, timestamped events can be derived from one
+ * clip (see timelineSegmenter.ts) instead of collapsing to one result.
+ *
+ * Unlike classifyAudio(), this has no last-resort fabricated placeholder —
+ * if both real backends fail, it throws, and the caller must report that
+ * honestly rather than inventing a timeline.
+ */
+export const classifySequence = async (
+  audioData: Float32Array,
+  sampleRate: number
+): Promise<SequenceClassificationResult> => {
+  try {
+    const frames = await yamnetPlugin.predictSequence(audioData, sampleRate);
+    return { frames, modelSource: 'yamnet', modelName: yamnetPlugin.name };
+  } catch (yamnetError) {
+    console.warn('YAMNet unavailable, falling back to heuristic classifier for sequence analysis:', yamnetError);
   }
 
-  const confidence = minConf + Math.random() * (maxConf - minConf);
-
-  const classes: SoundEventClass[] = ['chainsaw', 'vehicle', 'wildlife', 'background', 'gunshot', 'tree_fall', 'fire_anomaly'];
-  const alternativePredictions = classes
-    .filter(c => c !== eventClass)
-    .map(c => ({
-      eventClass: c,
-      confidence: Math.random() * (minConf - 0.2) // Keep alternatives lower than main prediction
-    }))
-    .sort((a, b) => b.confidence - a.confidence);
-
-  return {
-    id: generateId(),
-    eventClass,
-    confidence,
-    alternativePredictions,
-    timestamp: new Date(),
-    isSimulated: true,
-    processingTimeMs: delay,
-  };
+  const frames = await heuristicPlugin.predictSequence(audioData, sampleRate);
+  return { frames, modelSource: 'heuristic', modelName: heuristicPlugin.name };
 };
