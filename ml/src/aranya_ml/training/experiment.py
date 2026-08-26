@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
@@ -65,6 +66,25 @@ def select_experiment_rows(rows: list[PilotRow], allow_provisional: bool) -> lis
     return selected
 
 
+def _model_fingerprint(path: Path) -> str:
+    resolved = path.resolve()
+    files = (
+        [resolved]
+        if resolved.is_file()
+        else sorted(item for item in resolved.rglob("*") if item.is_file())
+    )
+    if not files:
+        raise ValueError(f"YAMNet model has no files: {resolved}")
+    digest = hashlib.sha256()
+    for file in files:
+        relative = file.name if resolved.is_file() else file.relative_to(resolved).as_posix()
+        digest.update(relative.encode("utf-8"))
+        with file.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _feature_config(config: ExperimentConfig) -> dict[str, object]:
     if config.feature_kind == "logmel":
         return {"kind": "logmel", **asdict(DEFAULT_LOGMEL_CONFIG)}
@@ -73,6 +93,7 @@ def _feature_config(config: ExperimentConfig) -> dict[str, object]:
     return {
         "kind": "yamnet",
         "model_path": str(config.yamnet_model.resolve()),
+        "model_fingerprint": _model_fingerprint(config.yamnet_model),
         "sample_rate_hz": YAMNET_SAMPLE_RATE,
         "window_seconds": YAMNET_WINDOW_SECONDS,
         "hop_seconds": YAMNET_HOP_SECONDS,
@@ -121,6 +142,8 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         raise ValueError("output feature configuration does not match requested run")
     if existing is not None and existing.get("model_kind") != config.model_kind:
         raise ValueError("output model kind does not match requested run")
+    if existing is not None and existing.get("seed") != config.seed:
+        raise ValueError("output seed does not match requested run")
 
     config.output.mkdir(parents=True, exist_ok=True)
     cache_path = config.output / "features.npz"

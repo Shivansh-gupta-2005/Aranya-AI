@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from aranya_ml.training.experiment import ExperimentConfig, run_experiment
+from aranya_ml.training.experiment import ExperimentConfig, _feature_config, run_experiment
 
 TARGETS = ("gunfire", "chainsaw", "metal_tool_activity", "fire", "vehicle")
 FIELDS = (
@@ -104,3 +104,49 @@ def test_experiment_refuses_output_with_changed_data(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="output fingerprint does not match selected data"):
         run_experiment(config)
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning:audioread.rawread")
+def test_experiment_refuses_output_with_changed_seed(tmp_path: Path) -> None:
+    manifest = write_synthetic_audio_manifest(tmp_path)
+    output = tmp_path / "run"
+    run_experiment(
+        ExperimentConfig(
+            manifest=manifest,
+            output=output,
+            feature_kind="logmel",
+            model_kind="logistic",
+            allow_provisional=True,
+            seed=7,
+        )
+    )
+
+    with pytest.raises(ValueError, match="output seed does not match requested run"):
+        run_experiment(
+            ExperimentConfig(
+                manifest=manifest,
+                output=output,
+                feature_kind="logmel",
+                model_kind="logistic",
+                allow_provisional=True,
+                seed=8,
+            )
+        )
+
+
+def test_yamnet_feature_config_changes_with_model_content(tmp_path: Path) -> None:
+    model = tmp_path / "yamnet"
+    model.mkdir()
+    weights = model / "saved_model.pb"
+    weights.write_bytes(b"first")
+    config = ExperimentConfig(
+        manifest=tmp_path / "pilot.csv",
+        output=tmp_path / "run",
+        feature_kind="yamnet",
+        model_kind="logistic",
+        yamnet_model=model,
+    )
+    first = _feature_config(config)
+    weights.write_bytes(b"second")
+
+    assert _feature_config(config)["model_fingerprint"] != first["model_fingerprint"]
