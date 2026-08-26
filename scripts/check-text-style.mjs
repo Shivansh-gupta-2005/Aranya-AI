@@ -35,11 +35,14 @@ export function findNonAscii(content) {
     );
 }
 
-function collectTextFiles(path) {
+export function collectTextFiles(path) {
   if (statSync(path).isFile()) {
     return TEXT_EXTENSIONS.has(extname(path)) ? [path] : [];
   }
   return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isSymbolicLink()) {
+      return [];
+    }
     if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) {
       return [];
     }
