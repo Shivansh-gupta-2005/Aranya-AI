@@ -58,3 +58,16 @@ def embedding_array(output: Any) -> Any:
         if array.ndim == 1
         else array.reshape(-1, YAMNET_EMBEDDING_DIM).mean(axis=0).astype("float32")
     )
+
+
+def pool_embedding_frames(frames: Any) -> Any:
+    try:
+        import numpy as np
+    except ImportError as exc:
+        raise RuntimeError("NumPy is required to pool embeddings") from exc
+    array = frames.numpy() if hasattr(frames, "numpy") else np.asarray(frames)
+    if array.ndim == 1:
+        array = array.reshape(1, -1)
+    if array.ndim != 2 or array.shape[1] != YAMNET_EMBEDDING_DIM:
+        raise ValueError(f"unexpected embedding shape {array.shape}")
+    return np.concatenate((array.mean(axis=0), array.max(axis=0))).astype("float32")
