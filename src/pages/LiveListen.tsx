@@ -309,7 +309,7 @@ export const LiveListen: React.FC = () => {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-3 w-3 bg-forest-500" />
           </span>
-          <span className="text-forest-300 font-mono text-sm">Listening Listening...</span>
+          <span className="text-forest-300 font-mono text-sm">Listening...</span>
           {currentClassification && (
             <span className="text-gray-300 text-sm">
               {SOUND_CLASS_LABELS[currentClassification.eventClass]}: {(currentClassification.confidence * 100).toFixed(0)}%
