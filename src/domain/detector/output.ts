@@ -25,15 +25,42 @@ function assertScore(value: number, label: string): void {
   }
 }
 
+function assertIdentifier(value: string, label: string): void {
+  if (!value.trim()) {
+    throw new Error(`${label} must not be empty.`);
+  }
+}
+
+function assertTargetScores(scores: TargetScores, label: string): void {
+  const expected = new Set(TARGET_CLASSES);
+  for (const key of Object.keys(scores)) {
+    if (!expected.has(key as TargetClass)) {
+      throw new Error(`${label} contains an unknown class: ${key}.`);
+    }
+  }
+  for (const classId of TARGET_CLASSES) {
+    assertScore(scores[classId], `${label}.${classId}`);
+  }
+}
+
 export function createDetectorOutput(input: DetectorOutputInput): DetectorOutput {
-  if (input.startSeconds < 0 || input.endSeconds <= input.startSeconds) {
+  assertIdentifier(input.inferenceId, 'inferenceId');
+  assertIdentifier(input.modelId, 'modelId');
+  assertIdentifier(input.modelVersion, 'modelVersion');
+  assertIdentifier(input.preprocessingId, 'preprocessingId');
+  if (
+    !Number.isFinite(input.startSeconds) ||
+    !Number.isFinite(input.endSeconds) ||
+    input.startSeconds < 0 ||
+    input.endSeconds <= input.startSeconds
+  ) {
     throw new Error('Detector output needs a valid time interval.');
   }
+  assertTargetScores(input.scores, 'scores');
+  assertTargetScores(input.thresholds, 'thresholds');
   const detections = TARGET_CLASSES.flatMap((classId) => {
     const score = input.scores[classId];
     const threshold = input.thresholds[classId];
-    assertScore(score, `${classId} score`);
-    assertScore(threshold, `${classId} threshold`);
     return score >= threshold ? [{ classId, score, threshold }] : [];
   });
   return {

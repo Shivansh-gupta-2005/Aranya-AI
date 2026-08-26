@@ -103,6 +103,19 @@ def test_target_annotations_reject_context_classes() -> None:
     assert any("unsupported target class" in error for error in errors)
 
 
+def test_split_assignment_must_reference_a_recording_group() -> None:
+    catalog = Catalog(
+        sources=(source(),),
+        recordings=(recording(),),
+        annotations=(annotation("a1", "gunfire"),),
+        splits=(SplitAssignment("split-v1", "missing-group", "train", True),),
+    )
+
+    errors = validate_catalog(catalog)
+
+    assert any("unknown recording group" in error for error in errors)
+
+
 def test_tracked_v1_catalog_is_valid() -> None:
     catalog = load_catalog("datasets/v1")
 

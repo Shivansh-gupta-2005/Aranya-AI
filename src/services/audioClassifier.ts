@@ -1,4 +1,4 @@
-import { ClassificationResult, SoundEventClass, generateId } from '../types';
+import { ClassificationResult } from '../types';
 import { AudioModelPlugin, FrameScore } from './models/types';
 import { yamnetPlugin } from './models/yamnetPlugin';
 import { heuristicPlugin } from './models/heuristicPlugin';
@@ -23,9 +23,9 @@ export interface SequenceClassificationResult {
  * DSP/signal-processing heuristic classifier if the model can't be loaded or
  * inference fails (e.g. no network access to fetch model weights, WebGL
  * unavailable, etc). Both paths analyze the actual audio that was
- * uploaded/captured; neither ever fabricates a result. Only if both real
- * paths fail outright (e.g. a genuinely empty/corrupt buffer) do we fall
- * back to a clearly-labeled simulated placeholder so the UI never breaks.
+ * uploaded or captured. Neither path fabricates a result. If both paths
+ * fail, this function throws so the caller can report an inference failure
+ * without creating an event.
  */
 export const classifyAudio = async (
   audioData: Float32Array,
@@ -43,26 +43,8 @@ export const classifyAudio = async (
     return { ...result, modelSource: 'heuristic' };
   } catch (heuristicError) {
     console.error('Heuristic classifier failed:', heuristicError);
+    throw heuristicError;
   }
-
-  // Last-resort placeholder: only reached if the audio buffer itself is
-  // unusable. Clearly labeled as simulated so it's never mistaken for a
-  // real analysis result.
-  const delay = 200;
-  const classes: SoundEventClass[] = ['chainsaw', 'vehicle', 'wildlife', 'background', 'gunfire', 'tree_fall', 'fire'];
-  const topClass = classes[Math.floor(Math.random() * classes.length)];
-  return {
-    id: generateId(),
-    eventClass: topClass,
-    confidence: 0.5,
-    alternativePredictions: classes
-      .filter((c) => c !== topClass)
-      .map((c) => ({ eventClass: c, confidence: 0.1 })),
-    timestamp: new Date(),
-    isSimulated: true,
-    processingTimeMs: delay,
-    modelSource: 'simulated',
-  };
 };
 
 /**

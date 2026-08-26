@@ -163,6 +163,7 @@ def validate_catalog(catalog: Catalog) -> list[str]:
     errors: list[str] = []
     sources = {source.source_id: source for source in catalog.sources}
     recordings = {recording.recording_id: recording for recording in catalog.recordings}
+    recording_groups = {recording.recording_group_id for recording in catalog.recordings}
     split_by_group: dict[str, SplitAssignment] = {}
 
     if len(sources) != len(catalog.sources):
@@ -177,6 +178,8 @@ def validate_catalog(catalog: Catalog) -> list[str]:
         split_by_group[key] = assignment
         if assignment.split not in SPLITS:
             errors.append(f"invalid split for group {assignment.recording_group_id}")
+        if assignment.recording_group_id not in recording_groups:
+            errors.append(f"unknown recording group in split: {assignment.recording_group_id}")
         if not assignment.frozen:
             errors.append(f"split assignment must be frozen: {key}")
 
@@ -231,7 +234,9 @@ def validate_catalog(catalog: Catalog) -> list[str]:
             for item in catalog.splits
             if item.recording_group_id == recording.recording_group_id
         ]
-        if not assignments:
-            errors.append(f"training recording needs a frozen split: {recording.recording_id}")
+        if len(assignments) != 1:
+            errors.append(
+                f"training recording needs exactly one frozen split: {recording.recording_id}"
+            )
 
     return errors
