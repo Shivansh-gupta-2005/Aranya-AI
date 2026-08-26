@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { SensorNode, SoundEventClass } from '../types';
 import { sensorSimulator } from '../services/sensorSimulator';
-import { createEventFromClassification, recordEvent } from '../services/eventPipeline';
+import { createEventFromClassification, recordEvent } from '../app/commands/eventCommands';
 import { AranyaEvent, LocalizationEstimate } from '../types/event';
 
 interface TriggerDetectionOptions {
@@ -17,7 +17,7 @@ interface SensorStoreState {
   /** Triggers a simulated sensor telemetry event AND records a real AranyaEvent through the shared event pipeline. Returns the created event (or null if the node doesn't exist) so callers can honestly reflect whether it was alert-eligible. */
   triggerDetection: (nodeId: string, eventClass: SoundEventClass, confidence: number, options?: TriggerDetectionOptions) => AranyaEvent | null;
   forceSync: (nodeId: string) => void;
-  /** Re-initializes simulated node telemetry to fresh starting values — used by Reset Demo. */
+  /** Re-initializes simulated node telemetry to fresh starting values: used by Reset Demo. */
   resetTelemetry: () => void;
 }
 

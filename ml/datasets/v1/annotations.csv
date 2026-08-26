@@ -1,0 +1,11 @@
+annotation_id,recording_id,class_id,start_seconds,end_seconds,confidence,annotator
+aggressive_fire_fire,aggressive_fire,fire,0,9.136,1.0,team-labeling
+bonfire_fire,bonfire,fire,0,21.6,1.0,team-labeling
+burning_leaves_fire,burning_leaves,fire,0,12.32,1.0,team-labeling
+chainsaw_1_chainsaw,chainsaw_1,chainsaw,0,44.284,1.0,team-labeling
+chainsaw_2_chainsaw,chainsaw_2,chainsaw,0,12.272,1.0,team-labeling
+gunshot_1_gunfire,gunshot_1,gunfire,0,3.044,1.0,team-labeling
+gunshot_2_gunfire,gunshot_2,gunfire,0,13.772,1.0,team-labeling
+gunshot_3_gunfire,gunshot_3,gunfire,0,10.816,1.0,team-labeling
+gunshot_4_gunfire,gunshot_4,gunfire,0,6.484,1.0,team-labeling
+metal_clanking_metal_tool_activity,metal_clanking,metal_tool_activity,0,6.988,1.0,team-labeling

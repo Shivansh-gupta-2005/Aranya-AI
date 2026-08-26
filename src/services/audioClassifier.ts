@@ -1,4 +1,4 @@
-import { ClassificationResult, SoundEventClass, generateId } from '../types';
+import { ClassificationResult } from '../types';
 import { AudioModelPlugin, FrameScore } from './models/types';
 import { yamnetPlugin } from './models/yamnetPlugin';
 import { heuristicPlugin } from './models/heuristicPlugin';
@@ -18,14 +18,14 @@ export interface SequenceClassificationResult {
 /**
  * Real audio classification entry point used by Audio Upload and Live Listen.
  *
- * Tries the pretrained YAMNet (AudioSet) model first — a real, general-purpose
- * sound-event classifier — and falls back to a transparent, offline
+ * Tries the pretrained YAMNet (AudioSet) model first: a real, general-purpose
+ * sound-event classifier: and falls back to a transparent, offline
  * DSP/signal-processing heuristic classifier if the model can't be loaded or
  * inference fails (e.g. no network access to fetch model weights, WebGL
  * unavailable, etc). Both paths analyze the actual audio that was
- * uploaded/captured; neither ever fabricates a result. Only if both real
- * paths fail outright (e.g. a genuinely empty/corrupt buffer) do we fall
- * back to a clearly-labeled simulated placeholder so the UI never breaks.
+ * uploaded or captured. Neither path fabricates a result. If both paths
+ * fail, this function throws so the caller can report an inference failure
+ * without creating an event.
  */
 export const classifyAudio = async (
   audioData: Float32Array,
@@ -43,26 +43,8 @@ export const classifyAudio = async (
     return { ...result, modelSource: 'heuristic' };
   } catch (heuristicError) {
     console.error('Heuristic classifier failed:', heuristicError);
+    throw heuristicError;
   }
-
-  // Last-resort placeholder — only reached if the audio buffer itself is
-  // unusable. Clearly labeled as simulated so it's never mistaken for a
-  // real analysis result.
-  const delay = 200;
-  const classes: SoundEventClass[] = ['chainsaw', 'vehicle', 'wildlife', 'background', 'gunshot', 'tree_fall', 'fire_anomaly'];
-  const topClass = classes[Math.floor(Math.random() * classes.length)];
-  return {
-    id: generateId(),
-    eventClass: topClass,
-    confidence: 0.5,
-    alternativePredictions: classes
-      .filter((c) => c !== topClass)
-      .map((c) => ({ eventClass: c, confidence: 0.1 })),
-    timestamp: new Date(),
-    isSimulated: true,
-    processingTimeMs: delay,
-    modelSource: 'simulated',
-  };
 };
 
 /**
@@ -72,7 +54,7 @@ export const classifyAudio = async (
  * timing so multiple distinct, timestamped events can be derived from one
  * clip (see timelineSegmenter.ts) instead of collapsing to one result.
  *
- * Unlike classifyAudio(), this has no last-resort fabricated placeholder —
+ * Unlike classifyAudio(), this has no last-resort fabricated placeholder :
  * if both real backends fail, it throws, and the caller must report that
  * honestly rather than inventing a timeline.
  */

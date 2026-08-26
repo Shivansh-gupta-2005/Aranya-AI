@@ -27,7 +27,7 @@ export const processAudioBuffer = (buffer: AudioBuffer): AudioAnalysis => {
  * and returns log-scaled, normalized magnitudes as [time][frequencyBin].
  * Capped to a fixed number of time/frequency bins for rendering.
  */
-export const createSpectrogram = (audioData: Float32Array, sampleRate: number): number[][] => {
+export const createSpectrogram = (audioData: Float32Array, _sampleRate: number): number[][] => {
   const targetFrames = 100;
   const targetBins = 96;
   const frameSize = 1024;
@@ -48,8 +48,8 @@ export const createSpectrogram = (audioData: Float32Array, sampleRate: number): 
     const mag = magnitudeSpectrum(frame, window);
 
     // Bin the full magnitude spectrum down to targetBins (log-ish grouping
-    // so lower frequencies — where most forest-relevant sound energy lives
-    // — get more resolution).
+    // so lower frequencies: where most forest-relevant sound energy lives
+    //: get more resolution).
     const usableBins = Math.floor(mag.length * 0.5); // ignore top half (very high freq, mostly noise for this use)
     const binned = new Array<number>(targetBins).fill(0);
     for (let b = 0; b < targetBins; b++) {

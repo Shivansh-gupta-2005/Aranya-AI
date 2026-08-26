@@ -1,0 +1,14 @@
+split_version,recording_group_id,split,frozen
+legacy-v0,team_recorded_aggressive_fire,test,true
+legacy-v0,team_recorded_bonfire,test,true
+legacy-v0,team_recorded_burning_leaves,test,true
+legacy-v0,team_recorded_chainsaw_1,test,true
+legacy-v0,team_recorded_chainsaw_2,test,true
+legacy-v0,team_recorded_final_all_audio_check,test,true
+legacy-v0,team_recorded_forest_ambience,test,true
+legacy-v0,team_recorded_gunshot_1,test,true
+legacy-v0,team_recorded_gunshot_2,test,true
+legacy-v0,team_recorded_gunshot_3,test,true
+legacy-v0,team_recorded_gunshot_4,test,true
+legacy-v0,team_recorded_metal_clanking,test,true
+legacy-v0,team_recorded_test_sound_gs_fa_cs,test,true

@@ -1,11 +1,11 @@
-import { SensorNode, SoundEventClass } from '../types';
+import { SensorNode, SensorStatus, SoundEventClass } from '../types';
 
 // ============================================================
-// SIMULATED sensor network — clearly labeled as such everywhere it
+// SIMULATED sensor network: clearly labeled as such everywhere it
 // surfaces in the UI. Models node telemetry (battery/signal/temp
 // drift) for 5 fictional forest nodes. Does NOT create AranyaEvents
-// itself — callers (DemoMode, sensorStore) build real events via
-// services/eventPipeline.ts using the node info this returns, so
+// itself: callers (DemoMode, sensorStore) build real events via
+// app/commands/eventCommands.ts using the node info this returns, so
 // simulated-sensor events flow through the exact same event pipeline
 // as real upload/live-mic detections.
 // ============================================================
@@ -20,7 +20,7 @@ interface RecentTrigger {
 export class SensorSimulatorService {
   private nodes: SensorNode[] = [];
   // Short-lived buffer of recent simulated triggers, used only for the
-  // multi-node weighted-fusion math below — NOT persisted event history
+  // multi-node weighted-fusion math below: NOT persisted event history
   // (that lives in useEventStore).
   private recentTriggers: RecentTrigger[] = [];
 
@@ -114,16 +114,17 @@ export class SensorSimulatorService {
       const newTemp = Math.max(22, Math.min(38, node.temperature + tempVariation));
 
       const newBattery = Math.max(0, node.battery - batteryDrain);
-      let newStatus = node.status;
-      if (newBattery < 10 || node.signalStrength < 20) newStatus = 'critical';
-      else if (newBattery < 30 || node.signalStrength < 40) newStatus = 'warning';
-      else newStatus = 'online';
+      const newStatus: SensorStatus = newBattery < 10 || node.signalStrength < 20
+        ? 'critical'
+        : newBattery < 30 || node.signalStrength < 40
+          ? 'warning'
+          : 'online';
 
       return {
         ...node,
         battery: newBattery,
         temperature: newTemp,
-        status: newStatus as any,
+        status: newStatus,
         lastHeartbeat: new Date()
       };
     });
@@ -133,8 +134,8 @@ export class SensorSimulatorService {
   /**
    * Records a simulated detection trigger against a node's telemetry
    * (for the multi-node fusion buffer) and returns the node so the
-   * caller can build a real AranyaEvent via eventPipeline with correct
-   * source/location — this method does not create events itself.
+   * caller can build a real AranyaEvent through event commands with correct
+   * source/location: this method does not create events itself.
    */
   triggerDetection(nodeId: string, eventClass: SoundEventClass, confidence: number): SensorNode | null {
     const node = this.nodes.find((n) => n.id === nodeId);
@@ -150,10 +151,10 @@ export class SensorSimulatorService {
 
   /**
    * Weighted multi-node confirmation, per the PDF's fusion formula
-   * (C = Σ wᵢCᵢ). Reads the recent-trigger buffer, not persisted event
+   * (C = sum w[i]C[i]). Reads the recent-trigger buffer, not persisted event
    * history. Only meaningful when Demo Mode's "Full Forest Incident"
    * scenario has triggered the SAME class across multiple simulated
-   * nodes within the window — otherwise returns a low/zero value.
+   * nodes within the window: otherwise returns a low/zero value.
    */
   getMultiNodeConfirmation(eventClass: SoundEventClass): number {
     const thirtySecsAgo = new Date(Date.now() - 30000);
@@ -190,22 +191,23 @@ export class SensorSimulatorService {
     const tempVariation = (Math.random() - 0.5) * 2;
     const newTemp = Math.max(22, Math.min(38, node.temperature + tempVariation));
     const newBattery = Math.max(0, node.battery - batteryDrain);
-    let newStatus = node.status;
-    if (newBattery < 10 || node.signalStrength < 20) newStatus = 'critical';
-    else if (newBattery < 30 || node.signalStrength < 40) newStatus = 'warning';
-    else newStatus = 'online';
+    const newStatus: SensorStatus = newBattery < 10 || node.signalStrength < 20
+      ? 'critical'
+      : newBattery < 30 || node.signalStrength < 40
+        ? 'warning'
+        : 'online';
 
     this.nodes[nodeIndex] = {
       ...node,
       battery: newBattery,
       temperature: newTemp,
       signalStrength: Math.max(20, Math.min(100, node.signalStrength + (Math.random() - 0.5) * 10)),
-      status: newStatus as any,
+      status: newStatus,
       lastHeartbeat: new Date()
     };
   }
 
-  /** Re-initializes node telemetry to fresh starting values and clears the fusion trigger buffer — used by Reset Demo. */
+  /** Re-initializes node telemetry to fresh starting values and clears the fusion trigger buffer: used by Reset Demo. */
   resetTelemetry(): void {
     this.initializeNodes();
     this.recentTriggers = [];

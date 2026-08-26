@@ -1,14 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AranyaEvent, VerificationStatus } from '../types/event';
+import { migratePersistedEventState } from '../platform/persistence/classMigration';
 
 // ============================================================
-// Canonical event store — the single source of truth every page
+// Canonical event store: the single source of truth every page
 // (Dashboard, Alerts, ForestMap, IncidentDetails, Analytics,
 // SensorDetails) reads from, regardless of whether an event came
 // from real audio-upload analysis, real live-mic analysis, or a
 // simulated sensor trigger. Persisted to localStorage (browser-only
-// prototype — no backend) so a session survives a page refresh.
+// prototype: no backend) so a session survives a page refresh.
 // ============================================================
 
 const OPEN_STATUSES: VerificationStatus[] = ['active', 'acknowledged'];
@@ -18,11 +19,11 @@ interface EventStoreState {
   addEvent: (event: AranyaEvent) => void;
   updateVerification: (id: string, status: VerificationStatus, notes?: string, actor?: string) => void;
   getEvent: (id: string) => AranyaEvent | undefined;
-  /** Alert-eligible events only (see eventPipeline.isAlertEligible) — the set the Alerts page and Dashboard "Active Alerts" show. */
+  /** Alert-eligible events only (see eventBuilder.isAlertEligible): the set the Alerts page and Dashboard "Active Alerts" show. */
   getActiveEvents: () => AranyaEvent[];
   getCriticalCount: () => number;
   getTodayCount: () => number;
-  /** Clears all events — used by Reset Demo. */
+  /** Clears all events: used by Reset Demo. */
   clearAll: () => void;
 }
 
@@ -80,6 +81,8 @@ export const useEventStore = create<EventStoreState>()(
     }),
     {
       name: 'aranya-event-store',
+      version: 1,
+      migrate: (persisted) => migratePersistedEventState(persisted) as EventStoreState,
       // AranyaEvent stores all timestamps as ISO strings already, so the
       // default JSON serializer round-trips it correctly with no reviver.
     }

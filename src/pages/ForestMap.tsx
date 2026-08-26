@@ -99,10 +99,10 @@ const createLocalizationIcon = () => {
 };
 
 // Illustrative acoustic-coverage radius. This is a rough planning
-// assumption, NOT a precise detection boundary — actual range depends on
+// assumption, NOT a precise detection boundary: actual range depends on
 // sound type/intensity, terrain, vegetation, wind, humidity, background
 // noise, and sensor sensitivity. Area shown wherever needed uses the
-// correct π·r² (not r² or 2·π·r) — see the tooltip text below.
+// correct pi * r^2 formula: see the tooltip text below.
 const COVERAGE_RADIUS_METERS = 1500;
 const coverageAreaKm2 = (Math.PI * (COVERAGE_RADIUS_METERS / 1000) ** 2).toFixed(2);
 
@@ -112,7 +112,7 @@ export default function ForestMap() {
   const activeEvents = getActiveEvents();
 
   // Only events with a real location (simulated-sensor sourced, at the
-  // reporting node's own coordinate) can be plotted — real upload/live-mic
+  // reporting node's own coordinate) can be plotted: real upload/live-mic
   // events have no GPS and are never assigned a fabricated placeholder.
   const locatableEvents = activeEvents.filter((e) => e.location);
   const simulatedLocalizationEvents = activeEvents.filter((e) => e.localization.status === 'simulated');
@@ -182,9 +182,9 @@ export default function ForestMap() {
                     <Popup>
                       <div className="bg-canopy-800 text-gray-200 p-1 text-xs">
                         <p className="font-semibold mb-1">Illustrative coverage assumption</p>
-                        <p>Radius: {(COVERAGE_RADIUS_METERS / 1000).toFixed(1)} km · Area: π·r² ≈ {coverageAreaKm2} km²</p>
+                        <p>Radius: {(COVERAGE_RADIUS_METERS / 1000).toFixed(1)} km | Area: about {coverageAreaKm2} km^2</p>
                         <p className="text-gray-400 mt-1">
-                          Not a precision detection boundary — real range depends on sound type, terrain,
+                          Not a precision detection boundary: real range depends on sound type, terrain,
                           vegetation, wind, humidity and sensor sensitivity.
                         </p>
                       </div>
@@ -205,7 +205,7 @@ export default function ForestMap() {
                       <Popup>
                         <div className="bg-canopy-800 text-gray-200 p-1 text-xs">
                           <p className="font-semibold">{SOUND_CLASS_LABELS[event.eventClass]}</p>
-                          <p>{(event.confidence * 100).toFixed(0)}% confidence · simulated sensor report</p>
+                          <p>{(event.confidence * 100).toFixed(0)}% confidence | simulated sensor report</p>
                         </div>
                       </Popup>
                     </Marker>
@@ -236,7 +236,7 @@ export default function ForestMap() {
                           <div className="bg-canopy-800 text-gray-200 p-1 text-xs max-w-[200px]">
                             <p className="font-semibold text-purple-300 mb-1">SIMULATED LOCALIZATION</p>
                             <p>{loc.description}</p>
-                            <p className="text-gray-400 mt-1">± {loc.uncertaintyMeters}m · {(loc.confidence * 100).toFixed(0)}% localization confidence</p>
+                            <p className="text-gray-400 mt-1">+/- {loc.uncertaintyMeters}m | {(loc.confidence * 100).toFixed(0)}% localization confidence</p>
                             <p className="text-gray-500 mt-1">Nodes: {loc.contributingSensorIds.join(', ')}</p>
                           </div>
                         </Popup>

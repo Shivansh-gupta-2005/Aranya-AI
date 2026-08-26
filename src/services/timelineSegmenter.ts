@@ -11,26 +11,26 @@ import { ModelSource } from './audioClassifier';
 // Two distinct algorithms are used, matched to how each class actually
 // behaves acoustically over time:
 //
-// - SUSTAINED classes (chainsaw/vehicle/wildlife/fire_anomaly) use
+// - SUSTAINED classes (chainsaw/vehicle/wildlife/fire) use
 //   streak confirmation: N consecutive above-threshold frames confirm
 //   one continuous event. Appropriate because a real chainsaw/vehicle
 //   sound genuinely persists across many frames.
 //
-// - IMPULSIVE classes (gunshot/tree_fall/metal_clank) use prominence-
+// - IMPULSIVE classes (gunfire/tree_fall/metal_tool_activity) use prominence-
 //   based peak-picking instead. A first version of this file reused
 //   streak confirmation for impulsive classes too, which caused a real,
-//   observed bug: multiple distinct gunshots close enough together that
+//   observed bug: multiple distinct gunfires close enough together that
 //   confidence never dips back below the confirmation threshold between
 //   them (e.g. due to echo/reverb) were merged into a single event
-//   instead of being reported as separate detections — confirmed
-//   directly against a real multi-gunshot recording, where several
+//   instead of being reported as separate detections: confirmed
+//   directly against a real multi-gunfire recording, where several
 //   consecutive high-confidence frames (which really were 2+ discrete
-//   shots) collapsed into one 0.48s–4.32s "event". Peak-picking finds
+//   shots) collapsed into one 0.48s to 4.32s "event". Peak-picking finds
 //   each locally-highest frame and only merges two nearby peaks when
 //   the dip between them isn't prominent enough to represent a genuine
-//   second event — see findProminentPeaks().
+//   second event: see findProminentPeaks().
 //
-// 'background' is intentionally excluded from both paths — it is the
+// 'background' is intentionally excluded from both paths: it is the
 // ambient/null class and is never itself an actionable event.
 // ============================================================
 
@@ -39,8 +39,8 @@ export interface ConfirmationPolicy {
   windowsRequired: number;
 }
 
-const SUSTAINED_CLASSES: SoundEventClass[] = ['chainsaw', 'vehicle', 'wildlife', 'fire_anomaly'];
-const IMPULSIVE_CLASSES: SoundEventClass[] = ['gunshot', 'tree_fall', 'metal_clank'];
+const SUSTAINED_CLASSES: SoundEventClass[] = ['chainsaw', 'vehicle', 'wildlife', 'fire'];
+const IMPULSIVE_CLASSES: SoundEventClass[] = ['gunfire', 'tree_fall', 'metal_tool_activity'];
 
 /**
  * Minimum prominence (how far the confidence must dip between two nearby
@@ -51,7 +51,7 @@ const IMPULSIVE_CLASSES: SoundEventClass[] = ['gunshot', 'tree_fall', 'metal_cla
  * doesn't get over-segmented into spurious extra detections, while a real
  * gap between two distinct impulses (which in practice showed dips of
  * several tenths, not a few percent, in real test recordings) still splits
- * correctly. This is a chosen DSP parameter, not a measured value — treat
+ * correctly. This is a chosen DSP parameter, not a measured value: treat
  * it as tunable if real-world testing shows over/under-segmentation.
  */
 const PEAK_MIN_PROMINENCE = 0.12;
@@ -59,16 +59,16 @@ const PEAK_MIN_PROMINENCE = 0.12;
 /**
  * Sustained classes require a real multi-frame streak. Impulsive/transient
  * classes are handled by peak-picking (see findProminentPeaks), which
- * doesn't use windowsRequired in the same sense — kept at 1 for schema
+ * doesn't use windowsRequired in the same sense: kept at 1 for schema
  * consistency (each confirmed peak is exactly one frame's detection).
  *
  * Thresholds are calibrated PER MODEL PROVIDER, not as one absolute number
- * shared across both — empirically verified during development (see
- * docs/ai-pipeline.md): the heuristic plugin's own pre-existing confidence
+ * shared across both: empirically verified during development (see
+ * docs/architecture/browser-inference.md): the heuristic plugin's own pre-existing confidence
  * band is MIN_HEURISTIC_CONFIDENCE=0.35..MAX_HEURISTIC_CONFIDENCE=0.78
  * (see heuristicPlugin.ts), and even a starkly clean synthetic test signal
  * (near-silence vs. a strong pure tone vs. a strong impulse) never
- * produced a scaled confidence above ~0.46 — a uniform 0.6/0.75 threshold
+ * produced a scaled confidence above ~0.46: a uniform 0.6/0.75 threshold
  * would make the heuristic fallback path structurally unable to confirm
  * ANY event, on ANY audio, regardless of what's actually in the clip. YAMNet's
  * trained multi-label output is expected to produce more sharply peaked
@@ -164,7 +164,7 @@ function segmentSustainedClass(frames: FrameScore[], cls: SoundEventClass, polic
 
 /**
  * Finds locally-highest, sufficiently-prominent peaks in a per-class
- * confidence series — each represents one discrete impulsive event.
+ * confidence series: each represents one discrete impulsive event.
  * Two nearby peaks are merged into one (keeping the higher) unless the
  * confidence dips between them by at least `minProminence` relative to
  * the lower of the two peaks.
@@ -181,7 +181,7 @@ export function findProminentPeaks(scores: number[], threshold: number, minPromi
   if (rawPeaks.length === 0) return [];
 
   // 2. Collapse adjacent-index runs (flat plateaus / ties) into one
-  // representative index per run — the run's own highest value.
+  // representative index per run: the run's own highest value.
   const grouped: number[] = [];
   let groupBest = rawPeaks[0];
   for (let k = 1; k < rawPeaks.length; k++) {

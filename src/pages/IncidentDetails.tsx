@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEventStore } from '../stores/eventStore';
 import { useSensorStore } from '../stores/sensorStore';
-import { recordVerification } from '../services/eventPipeline';
+import { recordVerification } from '../app/commands/eventCommands';
 import { PROTOTYPE_MODEL_DESCRIPTOR } from '../stores/feedbackStore';
 import { SOUND_CLASS_LABELS, SOUND_CLASS_COLORS, formatTimestamp } from '../types';
 import { VerificationStatus } from '../types/event';
@@ -31,7 +31,7 @@ export default function IncidentDetails() {
 
   const handleStatusChange = (status: VerificationStatus) => {
     // recordVerification updates the event AND, for a real verdict
-    // (verified/false_alarm), captures a structured FeedbackRecord —
+    // (verified/false_alarm), captures a structured FeedbackRecord :
     // the prototype's actual implementation of the feedback loop.
     recordVerification(event, status, undefined, 'Operator');
   };
@@ -51,7 +51,7 @@ export default function IncidentDetails() {
         <h1 className="text-2xl font-bold text-gray-100">Incident Details</h1>
         {!event.alertEligible && (
           <span className="ml-auto text-[10px] uppercase font-bold px-2 py-0.5 rounded border bg-gray-700/40 text-gray-300 border-gray-600/50">
-            Informational — Not an Alert
+            Informational: Not an Alert
           </span>
         )}
         {event.isSimulated && <span className={`badge-purple ${event.alertEligible ? 'ml-auto' : ''}`}>SIMULATED SENSOR EVENT</span>}
@@ -168,7 +168,7 @@ export default function IncidentDetails() {
               </>
             ) : (
               <div className="bg-canopy-900 border border-dashed border-canopy-700 rounded-lg p-8 text-center text-gray-500 text-sm">
-                Evidence unavailable {event.isSimulated ? '— this is a simulated sensor telemetry event with no associated audio.' : ''}
+                Evidence unavailable {event.isSimulated ? ': this is a simulated sensor telemetry event with no associated audio.' : ''}
               </div>
             )}
           </div>
@@ -223,7 +223,7 @@ export default function IncidentDetails() {
             <p className="text-[11px] text-gray-500 mt-4 leading-relaxed">
               Verified false positives/true positives are stored as labeled feedback (see Analytics). In a
               production deployment, accumulated feedback would be incorporated during periodic model
-              retraining/calibration cycles — this prototype does not retrain any model live.
+              retraining/calibration cycles: this prototype does not retrain any model live.
             </p>
           </div>
 
@@ -289,9 +289,9 @@ export default function IncidentDetails() {
               <div className="text-gray-400 text-sm flex items-center gap-2">
                 <Radio size={16} className="text-gray-600" />
                 {event.source.type === 'upload'
-                  ? 'Uploaded via browser — no physical sensor node involved.'
+                  ? 'Uploaded via browser: no physical sensor node involved.'
                   : event.source.type === 'live-mic'
-                  ? 'Captured via this browser\'s microphone — no physical sensor node involved.'
+                  ? 'Captured via this browser\'s microphone: no physical sensor node involved.'
                   : 'No sensor information available.'}
               </div>
             )}
@@ -314,21 +314,21 @@ export default function IncidentDetails() {
               </>
             ) : (
               <div className="text-gray-500 text-sm bg-canopy-900/50 border border-dashed border-canopy-700 rounded-lg p-4 text-center">
-                No location — this event has no associated sensor coordinate (browser upload/live-mic session).
+                No location: this event has no associated sensor coordinate (browser upload/live-mic session).
               </div>
             )}
 
             <div className="mt-4 pt-4 border-t border-canopy-700/50">
               {event.localization.status === 'unavailable' ? (
                 <p className="text-xs text-gray-500">
-                  <span className="font-semibold text-gray-400">Localization unavailable</span> — requires multiple
+                  <span className="font-semibold text-gray-400">Localization unavailable</span>: requires multiple
                   synchronized sensor detections of the same event (production capability, not simulated here).
                 </p>
               ) : (
                 <div className="text-xs space-y-1">
                   <p className="badge-purple inline-block mb-2 text-[10px]">Simulated localization (Demo Mode)</p>
                   <p className="text-gray-300">{event.localization.description}</p>
-                  <p className="text-gray-500">± {event.localization.uncertaintyMeters}m uncertainty · {(event.localization.confidence * 100).toFixed(0)}% localization confidence</p>
+                  <p className="text-gray-500">+/- {event.localization.uncertaintyMeters}m uncertainty | {(event.localization.confidence * 100).toFixed(0)}% localization confidence</p>
                   <p className="text-gray-500">Corroborated by: {event.localization.contributingSensorIds.join(', ')}</p>
                 </div>
               )}

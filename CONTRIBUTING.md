@@ -1,42 +1,61 @@
 # Contributing to ARANYA AI
 
-## Branches and pull requests
+Use a short branch from current `main`. Use `feature/<name>`, `fix/<name>`, or `experiment/<name>`. Open a pull request before merge. Do not force-push a shared branch.
 
-Keep `main` as the integration branch. Start work from an up-to-date `main` branch and use one of:
+## Setup
 
-- `feature/<short-description>`
-- `fix/<short-description>`
-- `experiment/<short-description>`
-
-Use focused commits such as `feat: add grouped dataset split` or `fix: preserve gunshot peak events`. Open a pull request before merging into `main`; include purpose, verification performed, relevant screenshots or evidence, and limitations. Do not force-push shared branches.
-
-## Local setup
+The web application needs Node.js 24 and npm 11.
 
 ```powershell
 npm ci
 npm run dev
-npm run build
 ```
 
-The Python ML workspace is separate from the React runtime. Do not install its dependencies into `node_modules`; create a local Python environment only after the ML environment is approved.
+The ML workspace uses Python 3.11 or 3.12 through uv.
 
-## What not to commit
+```powershell
+cd ml
+uv sync --locked --group dev
+```
 
-Never commit `node_modules`, build output, Python virtual environments, conversion environments, `.env` files, credentials, raw datasets, embeddings, checkpoints, generated metrics, caches, or personal IDE settings. Always review `git status` before staging.
-
-## Models and datasets
-
-Keep the required browser runtime model in `public/models/yamnet/`. Do not add arbitrary model binaries, raw audio, or trained checkpoints without reviewing size, provenance, licensing, runtime requirement, and whether Git LFS is needed.
-
-For ML data, commit manifests, schemas, source URLs, license/provenance metadata, and reproducible scripts. Keep raw recordings in ignored dataset directories. Preserve recording-group boundaries before creating windows or splitting data.
+Do not install ML packages into the web project. Do not keep a second requirements file beside `pyproject.toml` and `uv.lock`.
 
 ## Verification
 
-Run relevant checks and report the results in the pull request:
+Run the full checks before requesting review:
 
 ```powershell
+npm run lint
+npm run typecheck
+npm test
 npm run build
-python -B -m unittest discover -s ml/tests
+
+cd ml
+uv run ruff check src tests
+uv run ruff format --check src tests
+uv run pyright
+uv run pytest
+uv run aranya-ml validate-catalog --catalog datasets/v1
 ```
 
-Do not present simulated infrastructure, heuristic fallback, or unmeasured model performance as real AI or hardware results.
+Report which commands ran. Include screenshots for visible UI changes. State any check you could not run.
+
+## Code boundaries
+
+Keep business rules in `src/domain/`. Keep state writes in `src/app/`. Keep browser APIs in `src/platform/`. Model adapters belong in `src/services/models/` until inference becomes a separate deployable package.
+
+Split code by ownership and reason to change. Do not create folders only to make a tree look larger. Keep functions pure when they do not need I/O.
+
+## Data and models
+
+Commit reviewed metadata under `ml/datasets/`. Keep raw audio, embeddings, reports, checkpoints, exports, and caches under ignored `ml/work/`.
+
+Never mark a recording training eligible without verified provenance, license review, complete annotation coverage, human review, and a frozen group split. Never reuse decision-influencing test data for training.
+
+Do not add model claims without frozen evaluation evidence. Keep candidate classes marked as candidates until each class passes its release gate.
+
+## Git hygiene
+
+Review `git status` and staged diffs before every commit. Do not commit secrets, `.env` files, editor state, generated reports, local worktrees, virtual environments, or dependency directories.
+
+Use focused commit messages such as `feat: add detector output contract` or `fix: preserve frozen split groups`. Do not add tool attribution to commits or pull requests.

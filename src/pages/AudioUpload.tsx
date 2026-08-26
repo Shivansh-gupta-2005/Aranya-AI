@@ -7,7 +7,7 @@ import { SpectrogramDisplay } from '../components/audio/SpectrogramDisplay';
 import { DetectedEventsTimeline } from '../components/audio/DetectedEventsTimeline';
 import { classifySequence } from '../services/audioClassifier';
 import { segmentTimeline, SegmentedEvent } from '../services/timelineSegmenter';
-import { createEventFromClassification, recordEvent } from '../services/eventPipeline';
+import { createEventFromClassification, recordEvent } from '../app/commands/eventCommands';
 import { processAudioBuffer, decodeAudioFile } from '../services/audioProcessor';
 import { formatTimestamp, SOUND_CLASS_LABELS, SOUND_CLASS_COLORS, SoundEventClass } from '../types';
 import { AranyaEvent } from '../types/event';
@@ -79,7 +79,7 @@ export const AudioUpload: React.FC = () => {
     setIsDragging(false);
   }, []);
 
-  const validateFile = (file: File) => {
+  function validateFile(file: File) {
     const validTypes = ['audio/wav', 'audio/mpeg', 'audio/mp3', 'audio/ogg', 'audio/flac', 'audio/x-m4a'];
     if (!validTypes.includes(file.type) && !file.name.match(/\.(wav|mp3|ogg|flac|m4a)$/i)) {
       setError('Invalid file format. Please upload .wav, .mp3, .ogg, or .flac files.');
@@ -93,9 +93,9 @@ export const AudioUpload: React.FC = () => {
     }
 
     return true;
-  };
+  }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setIsDragging(false);
     setError(null);
@@ -104,7 +104,7 @@ export const AudioUpload: React.FC = () => {
     if (droppedFile && validateFile(droppedFile)) {
       processFile(droppedFile);
     }
-  }, []);
+  }
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -114,7 +114,7 @@ export const AudioUpload: React.FC = () => {
     }
   };
 
-  const processFile = async (file: File) => {
+  async function processFile(file: File) {
     setFile(file);
     setAudioUrl(URL.createObjectURL(file));
     setAnalysisTimestamp(null);
@@ -137,7 +137,7 @@ export const AudioUpload: React.FC = () => {
     } finally {
       setIsDecoding(false);
     }
-  };
+  }
 
   const handleAnalyze = async () => {
     const buffer = decodedBufferRef.current;
@@ -153,7 +153,7 @@ export const AudioUpload: React.FC = () => {
         ? mixDownToMono(buffer)
         : buffer.getChannelData(0);
 
-      // Real sliding-window analysis over the FULL clip — not a single
+      // Real sliding-window analysis over the FULL clip: not a single
       // whole-clip classification. classifySequence tries YAMNet first and
       // falls back to the offline heuristic only if YAMNet genuinely fails;
       // whichever ran is reported, never silently relabeled.
@@ -169,7 +169,7 @@ export const AudioUpload: React.FC = () => {
       const events = segments.map((seg) => {
         // Real secondary-class signal from the same window, used only to
         // justify an application-level interpretation note (see
-        // eventPipeline.computeInterpretationNote) — never fabricated.
+        // eventBuilder.computeInterpretationNote): never fabricated.
         const relatedScores =
           seg.eventClass === 'vehicle'
             ? { chainsaw: meanScoreInRange(seq.frames, 'chainsaw', seg.startTime, seg.endTime) }
@@ -255,7 +255,7 @@ export const AudioUpload: React.FC = () => {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Audio Analysis</h1>
-        <p className="text-gray-400">Upload a real audio recording — the AI genuinely analyzes it in sliding windows across the full clip.</p>
+        <p className="text-gray-400">Upload a real audio recording: the AI genuinely analyzes it in sliding windows across the full clip.</p>
       </div>
 
       {error && (
@@ -396,7 +396,7 @@ export const AudioUpload: React.FC = () => {
                   >
                     {modelDiagnostics.modelSource === 'yamnet'
                       ? 'Pretrained Model (YAMNet / AudioSet)'
-                      : 'YAMNet unavailable — offline heuristic fallback used'}
+                      : 'YAMNet unavailable: offline heuristic fallback used'}
                   </span>
                 )}
               </div>
@@ -404,7 +404,7 @@ export const AudioUpload: React.FC = () => {
               {isProcessing && (
                 <div className="flex flex-col items-center justify-center py-10 text-gray-400">
                   <div className="w-8 h-8 border-4 border-forest-900 border-t-forest-500 rounded-full animate-spin mb-3" />
-                  Running sliding-window analysis over the full clip…
+                  Running sliding-window analysis over the full clip...
                 </div>
               )}
 
@@ -412,15 +412,15 @@ export const AudioUpload: React.FC = () => {
                 <>
                   {modelDiagnostics && (
                     <p className="text-xs text-gray-500 mb-4">
-                      Model: {modelDiagnostics.modelName} · {modelDiagnostics.numFrames} frame(s) analyzed
-                      {analysisTimestamp ? ` · analyzed at ${formatTimestamp(analysisTimestamp)}` : ''}
+                      Model: {modelDiagnostics.modelName} | {modelDiagnostics.numFrames} frame(s) analyzed
+                      {analysisTimestamp ? ` | analyzed at ${formatTimestamp(analysisTimestamp)}` : ''}
                     </p>
                   )}
 
                   {detectedEvents.length === 0 ? (
                     <p className="text-gray-400 text-sm">
                       No events crossed the confirmation threshold for this clip. This is the model's actual
-                      result for this audio — not every clip contains a confidently-classifiable event.
+                      result for this audio: not every clip contains a confidently-classifiable event.
                     </p>
                   ) : (
                     <div className="overflow-x-auto">
@@ -471,7 +471,7 @@ export const AudioUpload: React.FC = () => {
                               {ev.interpretationNote && (
                                 <tr className="border-b border-[#1a2420]/50">
                                   <td colSpan={8} className="py-2 text-xs text-amber-400/90 bg-amber-950/10">
-                                    ⓘ {ev.interpretationNote}
+                                    Note: {ev.interpretationNote}
                                   </td>
                                 </tr>
                               )}
@@ -489,7 +489,7 @@ export const AudioUpload: React.FC = () => {
                     </h4>
                     <p className="text-gray-400 text-xs">
                       This analysis is based on a general-purpose pretrained acoustic model (or, if that model
-                      couldn't load, an offline signal-processing heuristic — see the badge above), not a
+                      couldn't load, an offline signal-processing heuristic: see the badge above), not a
                       trained Aranya-specific classifier. All detections should be verified against other
                       sensor data before dispatching field teams.
                     </p>

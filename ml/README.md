@@ -1,36 +1,40 @@
-# Aranya AI ML Experiment Workspace
+# ARANYA ML Workspace
 
-Python-side scaffolding for comparing the current browser YAMNet baseline with Aranya-specific classifiers. This workspace is separate from the React demonstration application.
+This package owns dataset validation, baseline evaluation, feature extraction helpers, classifiers, and model contract checks. It does not contain raw audio or a trained ARANYA model.
 
-## Experiment v0
+## Setup
 
-Labels: `gunshot`, `chainsaw_logging`, `metal_tool_activity`, and `background`.
-Background retains a required subtype: `forest_ambience`, `birds_animals`, `wind`, `rain`, `vehicles`, `machinery`, `human_movement`, `generic_impacts`, or `other_environmental_noise`.
-
-The planned comparison uses the same recording-level grouped split for:
-
-1. Current YAMNet predictions projected through the existing manual AudioSet mapping.
-2. Logistic Regression on 1024-dimensional YAMNet embeddings.
-3. A small MLP on 1024-dimensional YAMNet embeddings.
-
-The approximately 60 independent recording groups per class is a target/reference, not a blocking requirement. Reports must state the actual group count, duration, class distribution, and limitations. No metrics or comparison claims exist until labelled data and real inference have been run.
-
-## Baseline assumptions mirrored from the application
-
-- Local YAMNet asset: `/models/yamnet/model.json` in the browser; Python extraction will require an equivalent local SavedModel or compatible export later.
-- 16,000 Hz mono audio.
-- 0.96 second YAMNet patch window and 0.48 second patch hop.
-- 521 AudioSet scores and 1024-dimensional embeddings.
-- `src/baseline_mapping.py` mirrors the current TypeScript mapping for evaluation only; it is not an Aranya-trained model.
-
-The split occurs at recording-group level before fixed windows are generated, so windows from one source/session cannot cross train, validation, and test.
-
-## Commands
+From this directory:
 
 ```powershell
-python -B ml/scripts/validate_manifest.py --manifest ml/data/manifest.csv --check-paths
-python -B ml/scripts/create_grouped_splits.py --manifest ml/data/manifest.csv --output ml/data/manifest.split.csv
-python -B -m unittest discover -s ml/tests
+uv sync --locked --group dev
+uv run aranya-ml validate-catalog --catalog datasets/v1
 ```
 
-The extraction, training, evaluation, and latency scripts are explicit scaffolding entry points. They do not download, train, or fabricate results.
+The project supports Python 3.11 and 3.12. The lockfile is the dependency source of truth.
+
+## Catalog
+
+`datasets/v1/` separates source licenses, recordings, target intervals, and frozen group splits. One recording may contain several target annotations. Unreviewed time is not a negative example.
+
+The migrated catalog has 13 historical recordings and 10 target intervals. Every group is frozen in `legacy-v0` test. All recordings have `training_eligible=false` because they influenced prototype testing.
+
+## Baselines
+
+- A0 exactly mirrors the current browser mapping and normalizes across its eight current classes.
+- A1 pools the five candidate targets independently. Background and context scores cannot suppress targets.
+- B is planned one-vs-rest logistic regression on YAMNet embeddings.
+- C is a planned small multi-output MLP on the same embeddings.
+
+Training stops until the catalog contains approved training data. It must not invent results from the historical material.
+
+## Checks
+
+```powershell
+uv run ruff check src tests
+uv run ruff format --check src tests
+uv run pyright
+uv run pytest
+```
+
+See [dataset policy](../docs/ml/dataset-policy.md), [taxonomy](../docs/ml/taxonomy.md), and [evaluation protocol](../docs/ml/evaluation-protocol.md).

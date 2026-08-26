@@ -125,7 +125,7 @@ export default function SensorNetwork() {
               </div>
 
               <div className="flex items-center gap-2 text-sm text-gray-300">
-                <Thermometer size={14} className="text-amber-500" /> {node.temperature}°C
+                <Thermometer size={14} className="text-amber-500" /> {node.temperature} deg C
               </div>
 
               <div className="flex items-center gap-2 text-sm text-gray-300">
@@ -135,10 +135,10 @@ export default function SensorNetwork() {
 
             <div className="border-t border-canopy-700/50 pt-3 flex items-center justify-between text-xs text-gray-500">
               <div className="flex items-center gap-1">
-                <Clock size={12} /> Sync: {Math.floor((Date.now() - node.lastHeartbeat.getTime()) / 60000)}m ago
+                <Clock size={12} /> Last sync: {node.lastHeartbeat.toLocaleTimeString()}
               </div>
               <div className="text-forest-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                Details →
+                Details -&gt;
               </div>
             </div>
           </div>

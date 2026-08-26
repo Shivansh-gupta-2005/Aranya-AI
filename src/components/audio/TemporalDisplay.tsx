@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, CheckCircle2, AlertOctagon } from 'lucide-react';
+import { ArrowRight, AlertOctagon } from 'lucide-react';
 import { TemporalAggregation, SOUND_CLASS_LABELS, SOUND_CLASS_COLORS } from '../../types';
 
 export interface TemporalDisplayProps {

@@ -34,11 +34,6 @@ export const SpectrogramDisplay: React.FC<SpectrogramDisplayProps> = ({
 
   // Color map function (0 to 1 value to RGB)
   const getColor = (value: number) => {
-    // dark blue/black -> green -> yellow -> red
-    const r = Math.min(255, Math.max(0, 255 * (value - 0.5) * 2)); // Red starts coming in past 0.5, reaches max at 1.0
-    const g = Math.min(255, Math.max(0, 255 * (1 - Math.abs(value - 0.5) * 2))); // Green max at 0.5
-    const b = Math.min(255, Math.max(0, 255 * (0.5 - value) * 2)); // Blue max at 0, gone by 0.5
-    
     // Adjusted custom palette for better look
     // 0: #0a0f0d (dark)
     // 0.33: #111916 / dark green

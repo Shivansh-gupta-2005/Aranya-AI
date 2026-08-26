@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1",
+  "modelId": "yamnet-a1",
+  "modelVersion": "1",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "runtime": "tensorflowjs-graph-model",
+  "input": {
+    "sampleRateHz": 16000,
+    "channels": 1,
+    "dtype": "float32",
+    "windowSeconds": 0.96,
+    "hopSeconds": 0.48
+  },
+  "preprocessingId": "yamnet-16khz-mono-v1",
+  "outputClassOrder": [
+    "gunfire",
+    "chainsaw",
+    "metal_tool_activity",
+    "fire",
+    "vehicle"
+  ],
+  "thresholds": {
+    "gunfire": 0.6,
+    "chainsaw": 0.6,
+    "metal_tool_activity": 0.6,
+    "fire": 0.6,
+    "vehicle": 0.6
+  },
+  "classStatus": {
+    "gunfire": "candidate",
+    "chainsaw": "candidate",
+    "metal_tool_activity": "candidate",
+    "fire": "candidate",
+    "vehicle": "candidate"
+  },
+  "datasetVersion": "v1",
+  "splitVersion": "legacy-v0",
+  "testVectors": ["../test-vectors/README.md"]
+}

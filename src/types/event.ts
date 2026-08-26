@@ -1,5 +1,5 @@
 // ============================================================
-// ARANYA AI — Canonical Event Type
+// ARANYA AI: Canonical Event Type
 // ------------------------------------------------------------
 // Single source of truth for a detected acoustic event, whatever
 // produced it (uploaded-audio analysis, live microphone, or a
@@ -27,7 +27,7 @@ export interface ModelProvenance {
   provider: ModelProviderId;
   /** Human-readable name, e.g. "YAMNet (AudioSet, TensorFlow.js, pretrained)". */
   name: string;
-  /** Only set when a real, publishable version string exists — never invented. */
+  /** Only set when a real, publishable version string exists: never invented. */
   version?: string;
 }
 
@@ -52,17 +52,17 @@ export type VerificationStatus = 'active' | 'acknowledged' | 'verified' | 'false
 /**
  * How far this event's confidence sits above the minimum confirmation
  * threshold for its class/provider (see timelineSegmenter's
- * CONFIRMATION_POLICY_BY_PROVIDER) — a generic, honest "how solid is this
+ * CONFIRMATION_POLICY_BY_PROVIDER): a generic, honest "how solid is this
  * evidence" signal computed the same way for every class, not invented
  * per-class. 'weak' means it only just crossed the bar to become an event
- * at all; for classes where a false alarm is costly to cry (fire_anomaly,
- * metal_clank) this gates whether the event escalates to an actionable
- * alert — see eventPipeline.isAlertEligible.
+ * at all; for classes where a false alarm is costly to cry (fire,
+ * metal_tool_activity) this gates whether the event escalates to an actionable
+ * alert: see eventBuilder.isAlertEligible.
  */
 export type EvidenceStrength = 'weak' | 'moderate' | 'strong';
 
 export interface EventTimelineEntry {
-  /** ISO 8601 string — never a Date object (breaks localStorage round-trip). */
+  /** ISO 8601 string: never a Date object (breaks localStorage round-trip). */
   timestamp: string;
   action: string;
   detail: string;
@@ -84,7 +84,7 @@ export interface EventLocation {
 
 /**
  * Real evidence slices for display. Absent (undefined) for events with no
- * genuine audio evidence (e.g. simulated-sensor telemetry) — the UI must
+ * genuine audio evidence (e.g. simulated-sensor telemetry): the UI must
  * render "Evidence unavailable" in that case, never a placeholder.
  */
 export interface EventEvidence {
@@ -97,26 +97,26 @@ export interface EventEvidence {
  * Localization is a FUTURE PRODUCTION capability requiring multiple
  * synchronized sensor nodes independently detecting the same event
  * (time-difference-of-arrival). A single uploaded clip or one simulated
- * node can never genuinely localize a source — 'unavailable' is the
+ * node can never genuinely localize a source: 'unavailable' is the
  * correct, honest state for those. 'simulated' is used only by Demo
  * Mode's explicitly-labeled multi-node scenario, which shows the UI
- * *concept* using synthetic arrival-time differences — never presented
+ * *concept* using synthetic arrival-time differences: never presented
  * as a real triangulation of a real event.
  */
 export type LocalizationStatus = 'unavailable' | 'simulated';
 
 export interface LocalizationEstimate {
   status: LocalizationStatus;
-  /** Human-readable relative estimate, e.g. "≈2.1 km southeast of ARANYA-N01". */
+  /** Human-readable relative estimate, e.g. "about 2.1 km southeast of ARANYA-N01". */
   description: string;
   distanceMeters: number;
   uncertaintyMeters: number;
-  /** 0..1 — how much the (simulated) arrival-time/amplitude agreement supports this estimate. */
+  /** 0..1: how much the (simulated) arrival-time/amplitude agreement supports this estimate. */
   confidence: number;
   /** Node IDs whose (simulated) independent detections contributed. */
   contributingSensorIds: string[];
   referenceSensorId: string;
-  /** Synthetic coordinate for map display — only ever set by the explicitly-simulated Demo Mode scenario. */
+  /** Synthetic coordinate for map display: only ever set by the explicitly-simulated Demo Mode scenario. */
   estimatedLat: number;
   estimatedLng: number;
 }
@@ -125,9 +125,9 @@ export interface LocalizationEstimate {
  * A structured record of operator feedback on a detection, captured when
  * an event is marked verified/false-alarm. This is the raw material a
  * real deployment would accumulate into a labeled dataset for periodic
- * model retraining/calibration — the prototype stores it and displays
- * it, but does not retrain anything live. See services/feedbackStore.ts
- * and docs/prototype-limitations.md.
+ * model retraining/calibration: the prototype stores it and displays
+ * it, but does not retrain anything live. See stores/feedbackStore.ts
+ * and docs/product/prototype-limitations.md.
  */
 export interface FeedbackRecord {
   id: string;
@@ -158,7 +158,7 @@ export interface AranyaEvent {
   model: ModelProvenance;
   temporalConfirmation: TemporalConfirmationInfo;
   timingPrecision: TimingPrecision;
-  /** Derived from source.type — never hardcoded independently. */
+  /** Derived from source.type: never hardcoded independently. */
   isSimulated: boolean;
   location?: EventLocation;
   evidence?: EventEvidence;
@@ -167,20 +167,20 @@ export interface AranyaEvent {
    * Optional application-level relabeling of eventClass for display,
    * populated ONLY when the raw classifier output justifies it (e.g. a
    * 'vehicle' detection with genuinely elevated chainsaw/sawing signal
-   * in the same window) — never a blanket rename. See eventPipeline.ts.
+   * in the same window): never a blanket rename. See domain/events/eventBuilder.ts.
    */
   interpretationNote?: string;
   /** Human-readable pointer to the audio/telemetry this event came from. */
   audioReference: string;
   localization: LocalizationEstimate | { status: 'unavailable' };
-  /** How far above the class's confirmation threshold this event's confidence sits — see EvidenceStrength. */
+  /** How far above the class's confirmation threshold this event's confidence sits: see EvidenceStrength. */
   evidenceStrength: EvidenceStrength;
   /**
    * Whether this event should surface as an actionable alert (Alerts page,
    * Dashboard "Active Alerts", badge counts). Computed ONCE at creation in
-   * eventPipeline.isAlertEligible — the single source of truth for alert
+   * eventBuilder.isAlertEligible: the single source of truth for alert
    * policy. Non-alertable events remain fully real, persisted, and visible
-   * in the audio timeline / Incident Details / Analytics — they are simply
+   * in the audio timeline / Incident Details / Analytics: they are simply
    * not treated as a problem requiring a ranger's attention.
    */
   alertEligible: boolean;
