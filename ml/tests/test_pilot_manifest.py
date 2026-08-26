@@ -55,7 +55,7 @@ def write_manifest(
         "source_labels": source_labels,
     }
     with manifest.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS)
+        writer = csv.DictWriter[str](handle, fieldnames=FIELDS)
         writer.writeheader()
         writer.writerow(row)
     return manifest
@@ -123,9 +123,7 @@ def test_repo_relative_audio_path_resolves_from_nested_manifest(tmp_path: Path) 
 def test_group_cannot_cross_splits() -> None:
     rows = [make_row("a", "group-1", "train"), make_row("b", "group-1", "test")]
 
-    assert validate_split_groups(rows) == [
-        "recording group group-1 crosses splits: test, train"
-    ]
+    assert validate_split_groups(rows) == ["recording group group-1 crosses splits: test, train"]
 
 
 def test_audit_counts_positive_groups_and_release_gate() -> None:

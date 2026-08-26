@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from sklearn.metrics import (
@@ -16,6 +17,8 @@ from sklearn.metrics import (
 )
 
 from aranya_ml.data.pilot_manifest import TARGET_ORDER
+
+ZERO_DIVISION: Any = 0
 
 
 def _validate_matrices(y_true: np.ndarray, scores: np.ndarray) -> None:
@@ -50,8 +53,10 @@ def select_f2_thresholds(
             prediction = probabilities[:, index] >= threshold
             ranked.append(
                 (
-                    float(fbeta_score(target_truth, prediction, beta=2, zero_division=0)),
-                    float(precision_score(target_truth, prediction, zero_division=0)),
+                    float(
+                        fbeta_score(target_truth, prediction, beta=2, zero_division=ZERO_DIVISION)
+                    ),
+                    float(precision_score(target_truth, prediction, zero_division=ZERO_DIVISION)),
                     float(threshold),
                 )
             )
@@ -64,7 +69,7 @@ def evaluate_multilabel(
     scores: np.ndarray,
     thresholds: np.ndarray,
     target_names: Sequence[str] = TARGET_ORDER,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     truth = np.asarray(y_true, dtype=int)
     probabilities = np.asarray(scores, dtype=float)
     selected_thresholds = np.asarray(thresholds, dtype=float)
@@ -75,16 +80,22 @@ def evaluate_multilabel(
         raise ValueError("target name count does not match target count")
 
     predictions = probabilities >= selected_thresholds
-    per_class: dict[str, dict[str, object]] = {}
+    per_class: dict[str, dict[str, Any]] = {}
     for index, target in enumerate(target_names):
         target_truth = truth[:, index]
         target_prediction = predictions[:, index]
         support = int(target_truth.sum())
         per_class[target] = {
-            "precision": float(precision_score(target_truth, target_prediction, zero_division=0)),
-            "recall": float(recall_score(target_truth, target_prediction, zero_division=0)),
-            "f1": float(f1_score(target_truth, target_prediction, zero_division=0)),
-            "f2": float(fbeta_score(target_truth, target_prediction, beta=2, zero_division=0)),
+            "precision": float(
+                precision_score(target_truth, target_prediction, zero_division=ZERO_DIVISION)
+            ),
+            "recall": float(
+                recall_score(target_truth, target_prediction, zero_division=ZERO_DIVISION)
+            ),
+            "f1": float(f1_score(target_truth, target_prediction, zero_division=ZERO_DIVISION)),
+            "f2": float(
+                fbeta_score(target_truth, target_prediction, beta=2, zero_division=ZERO_DIVISION)
+            ),
             "pr_auc": (
                 float(average_precision_score(target_truth, probabilities[:, index]))
                 if support
@@ -100,14 +111,26 @@ def evaluate_multilabel(
     return {
         "sample_count": int(truth.shape[0]),
         "macro_precision": float(
-            precision_score(truth, predictions, average="macro", zero_division=0)
+            precision_score(truth, predictions, average="macro", zero_division=ZERO_DIVISION)
         ),
-        "macro_recall": float(recall_score(truth, predictions, average="macro", zero_division=0)),
-        "macro_f1": float(f1_score(truth, predictions, average="macro", zero_division=0)),
+        "macro_recall": float(
+            recall_score(truth, predictions, average="macro", zero_division=ZERO_DIVISION)
+        ),
+        "macro_f1": float(
+            f1_score(truth, predictions, average="macro", zero_division=ZERO_DIVISION)
+        ),
         "macro_f2": float(
-            fbeta_score(truth, predictions, beta=2, average="macro", zero_division=0)
+            fbeta_score(
+                truth,
+                predictions,
+                beta=2,
+                average="macro",
+                zero_division=ZERO_DIVISION,
+            )
         ),
-        "micro_f1": float(f1_score(truth, predictions, average="micro", zero_division=0)),
+        "micro_f1": float(
+            f1_score(truth, predictions, average="micro", zero_division=ZERO_DIVISION)
+        ),
         "subset_accuracy": float(accuracy_score(truth, predictions)),
         "per_class": per_class,
     }

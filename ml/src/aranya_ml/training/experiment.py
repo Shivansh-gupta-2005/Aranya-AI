@@ -51,9 +51,7 @@ class ExperimentConfig:
 
 
 def select_experiment_rows(rows: list[PilotRow], allow_provisional: bool) -> list[PilotRow]:
-    holdout_groups = {
-        row.recording_group_id for row in rows if row.split in {"validation", "test"}
-    }
+    holdout_groups = {row.recording_group_id for row in rows if row.split in {"validation", "test"}}
     selected = []
     for row in rows:
         include_provisional_train = (
@@ -109,7 +107,7 @@ def _read_existing_report(output: Path) -> dict[str, object] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def run_experiment(config: ExperimentConfig) -> dict[str, object]:
+def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
     all_rows = load_pilot_manifest(config.manifest, allow_provisional=config.allow_provisional)
     rows = select_experiment_rows(all_rows, config.allow_provisional)
     if not rows:

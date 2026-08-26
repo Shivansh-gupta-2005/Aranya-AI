@@ -57,7 +57,7 @@ def write_synthetic_audio_manifest(root: Path) -> Path:
             )
     manifest = root / "pilot.csv"
     with manifest.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS)
+        writer = csv.DictWriter[str](handle, fieldnames=FIELDS)
         writer.writeheader()
         writer.writerows(rows)
     return manifest

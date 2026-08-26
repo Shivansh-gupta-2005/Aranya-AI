@@ -28,6 +28,50 @@ The migrated catalog has 13 historical recordings and 10 target intervals. Every
 
 Training stops until the catalog contains approved training data. It must not invent results from the historical material.
 
+## Pilot experiments
+
+The pilot commands accept external manifests and keep generated artifacts under `work/`. They use five independent target outputs. Background rows become all-negative examples.
+
+Audit a manifest before training:
+
+```powershell
+uv run aranya-ml audit-pilot `
+  --manifest work/derived/v2/pilot_manifest_fsd_domain.csv `
+  --allow-provisional
+```
+
+Run the repaired windowed log-mel baselines:
+
+```powershell
+uv run aranya-ml train-pilot `
+  --manifest work/derived/v2/pilot_manifest_fsd_domain.csv `
+  --output work/runs/repaired-logmel-logistic-v1 `
+  --features logmel `
+  --model logistic `
+  --allow-provisional
+
+uv run aranya-ml train-pilot `
+  --manifest work/derived/v2/pilot_manifest_fsd_domain.csv `
+  --output work/runs/repaired-logmel-mlp-v1 `
+  --features logmel `
+  --model mlp `
+  --allow-provisional
+```
+
+YAMNet embedding experiments require a local Python SavedModel:
+
+```powershell
+uv run aranya-ml train-pilot `
+  --manifest work/derived/v2/pilot_manifest_fsd_domain.csv `
+  --output work/runs/repaired-yamnet-logistic-v1 `
+  --features yamnet `
+  --yamnet-model work/models/yamnet-savedmodel `
+  --model logistic `
+  --allow-provisional
+```
+
+`--allow-provisional` marks the result as exploratory and release-ineligible. A pilot score is not field accuracy. Thresholds use validation data, and the test split remains untouched until final reporting.
+
 ## Checks
 
 ```powershell

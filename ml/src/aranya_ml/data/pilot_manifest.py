@@ -164,10 +164,8 @@ def validate_split_groups(rows: Sequence[PilotRow]) -> list[str]:
     ]
 
 
-def audit_pilot_rows(rows: Sequence[PilotRow]) -> dict[str, object]:
-    positive_groups = {
-        split: {target: set() for target in TARGET_ORDER} for split in VALID_SPLITS
-    }
+def audit_pilot_rows(rows: Sequence[PilotRow]) -> dict[str, Any]:
+    positive_groups = {split: {target: set() for target in TARGET_ORDER} for split in VALID_SPLITS}
     row_counts = {split: 0 for split in VALID_SPLITS}
     source_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     provisional_rows = 0
