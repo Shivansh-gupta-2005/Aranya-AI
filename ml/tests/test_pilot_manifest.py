@@ -9,7 +9,6 @@ from aranya_ml.data.pilot_manifest import (
     validate_split_groups,
 )
 
-
 FIELDS = (
     "recording_id",
     "source_id",

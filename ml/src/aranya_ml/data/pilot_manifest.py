@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 TARGET_ORDER = ("gunfire", "chainsaw", "metal_tool_activity", "fire", "vehicle")
 KNOWN_CLASSES = (*TARGET_ORDER, "background")
 VALID_SPLITS = ("train", "validation", "test")
