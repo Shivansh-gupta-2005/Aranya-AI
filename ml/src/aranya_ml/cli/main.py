@@ -78,6 +78,7 @@ def _train_pilot(args: argparse.Namespace) -> int:
                 output=args.output,
                 feature_kind=args.features,
                 model_kind=args.model,
+                threshold_metric=args.threshold_metric,
                 allow_provisional=args.allow_provisional,
                 yamnet_model=args.yamnet_model,
                 seed=args.seed,
@@ -113,6 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
     train_pilot.add_argument("--output", type=Path, required=True)
     train_pilot.add_argument("--features", choices=("logmel", "yamnet"), required=True)
     train_pilot.add_argument("--model", choices=("logistic", "mlp"), required=True)
+    train_pilot.add_argument("--threshold-metric", choices=("f1", "f2"), default="f2")
     train_pilot.add_argument("--yamnet-model", type=Path)
     train_pilot.add_argument("--allow-provisional", action="store_true")
     train_pilot.add_argument("--seed", type=int, default=20260826)

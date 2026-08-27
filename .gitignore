@@ -17,6 +17,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+firmware/**/config.local.h
 *.pem
 *.key
 *.p12

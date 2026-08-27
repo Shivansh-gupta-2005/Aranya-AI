@@ -2,7 +2,7 @@
 
 ARANYA AI is a browser prototype for acoustic forest monitoring. It analyzes microphone and uploaded audio locally. Confirmed detections flow into one event store for alerts, maps, incidents, and analytics.
 
-The current browser path uses a local YAMNet model with a manual AudioSet mapping. It is a baseline, not a trained ARANYA model. Sensor nodes, localization, LoRaWAN, and edge firmware remain clearly marked simulations or future work.
+The browser path uses a local YAMNet model with a manual AudioSet mapping. It is a baseline, not a trained ARANYA model. The repository also contains ESP32-S3 edge firmware and an INT8 model candidate. Real microphone capture and dashboard delivery are not yet verified. Localization, LoRaWAN, and multi-node behavior remain simulated or future work.
 
 ## Quick start
 
@@ -37,6 +37,7 @@ Versioned JSON contracts live under `contracts/`. TypeScript and Python tests re
 ```text
 contracts/                Shared taxonomy and model interfaces
 docs/                     Architecture and ML policy
+firmware/aranya_node/     ESP32-S3 edge inference firmware
 src/app/                  State-writing application commands
 src/domain/               Pure detector and event rules
 src/platform/             Browser adapters such as audio capture and persistence
@@ -69,5 +70,8 @@ The tracked v1 catalog contains historical prototype material only. All 13 recor
 - [Detector taxonomy](docs/ml/taxonomy.md)
 - [Dataset policy](docs/ml/dataset-policy.md)
 - [Evaluation protocol](docs/ml/evaluation-protocol.md)
+- [ML system and training guide](docs/ml/README.md)
+- [ML results history](docs/ml/results-history.md)
 - [Prototype limits](docs/product/prototype-limitations.md)
+- [Project history and changelog](docs/ARANYA_PROJECT_HISTORY.md)
 - [Contributing](CONTRIBUTING.md)

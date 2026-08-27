@@ -30,9 +30,10 @@ def _validate_matrices(y_true: np.ndarray, scores: np.ndarray) -> None:
         raise ValueError("scores must stay between 0 and 1")
 
 
-def select_f2_thresholds(
+def _select_beta_thresholds(
     y_true: np.ndarray,
     scores: np.ndarray,
+    beta: float,
     grid: Sequence[float] | None = None,
 ) -> np.ndarray:
     truth = np.asarray(y_true, dtype=int)
@@ -54,7 +55,12 @@ def select_f2_thresholds(
             ranked.append(
                 (
                     float(
-                        fbeta_score(target_truth, prediction, beta=2, zero_division=ZERO_DIVISION)
+                        fbeta_score(
+                            target_truth,
+                            prediction,
+                            beta=beta,
+                            zero_division=ZERO_DIVISION,
+                        )
                     ),
                     float(precision_score(target_truth, prediction, zero_division=ZERO_DIVISION)),
                     float(threshold),
@@ -62,6 +68,22 @@ def select_f2_thresholds(
             )
         thresholds.append(max(ranked)[2])
     return np.asarray(thresholds, dtype=float)
+
+
+def select_f1_thresholds(
+    y_true: np.ndarray,
+    scores: np.ndarray,
+    grid: Sequence[float] | None = None,
+) -> np.ndarray:
+    return _select_beta_thresholds(y_true, scores, beta=1, grid=grid)
+
+
+def select_f2_thresholds(
+    y_true: np.ndarray,
+    scores: np.ndarray,
+    grid: Sequence[float] | None = None,
+) -> np.ndarray:
+    return _select_beta_thresholds(y_true, scores, beta=2, grid=grid)
 
 
 def evaluate_multilabel(

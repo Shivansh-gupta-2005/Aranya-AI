@@ -21,7 +21,11 @@ from aranya_ml.data.pilot_manifest import (
     pilot_fingerprint,
     validate_split_groups,
 )
-from aranya_ml.evaluation.multilabel import evaluate_multilabel, select_f2_thresholds
+from aranya_ml.evaluation.multilabel import (
+    evaluate_multilabel,
+    select_f1_thresholds,
+    select_f2_thresholds,
+)
 from aranya_ml.features.cache import load_feature_cache, save_feature_cache
 from aranya_ml.features.logmel import DEFAULT_LOGMEL_CONFIG, extract_logmel_summary
 from aranya_ml.features.yamnet import (
@@ -45,6 +49,7 @@ class ExperimentConfig:
     output: Path
     feature_kind: Literal["logmel", "yamnet"]
     model_kind: Literal["logistic", "mlp"]
+    threshold_metric: Literal["f1", "f2"] = "f2"
     allow_provisional: bool = False
     yamnet_model: Path | None = None
     seed: int = 20260826
@@ -142,6 +147,8 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
         raise ValueError("output feature configuration does not match requested run")
     if existing is not None and existing.get("model_kind") != config.model_kind:
         raise ValueError("output model kind does not match requested run")
+    if existing is not None and existing.get("threshold_metric") != config.threshold_metric:
+        raise ValueError("output threshold metric does not match requested run")
     if existing is not None and existing.get("seed") != config.seed:
         raise ValueError("output seed does not match requested run")
 
@@ -170,13 +177,17 @@ def run_experiment(config: ExperimentConfig) -> dict[str, Any]:
     trainer = fit_independent_logistic if config.model_kind == "logistic" else fit_independent_mlp
     model = trainer(features[train_mask], targets[train_mask], seed=config.seed)
     validation_scores = predict_target_scores(model, features[validation_mask])
-    thresholds = select_f2_thresholds(targets[validation_mask], validation_scores)
+    threshold_selector = (
+        select_f1_thresholds if config.threshold_metric == "f1" else select_f2_thresholds
+    )
+    thresholds = threshold_selector(targets[validation_mask], validation_scores)
     audit = audit_pilot_rows(rows)
     audit["release_eligible"] = bool(audit["release_eligible"] and not config.allow_provisional)
     report: dict[str, object] = {
         "data_fingerprint": fingerprint,
         "feature_config": feature_config,
         "model_kind": config.model_kind,
+        "threshold_metric": config.threshold_metric,
         "seed": config.seed,
         "target_order": list(TARGET_ORDER),
         "threshold_source": "validation",

@@ -88,6 +88,25 @@ def test_experiment_uses_validation_thresholds_and_writes_artifacts(tmp_path: Pa
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning:audioread.rawread")
+def test_experiment_records_f1_threshold_objective(tmp_path: Path) -> None:
+    manifest = write_synthetic_audio_manifest(tmp_path)
+
+    report = run_experiment(
+        ExperimentConfig(
+            manifest=manifest,
+            output=tmp_path / "run-f1",
+            feature_kind="logmel",
+            model_kind="logistic",
+            threshold_metric="f1",
+            allow_provisional=True,
+            seed=7,
+        )
+    )
+
+    assert report["threshold_metric"] == "f1"
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning:audioread.rawread")
 def test_experiment_refuses_output_with_changed_data(tmp_path: Path) -> None:
     manifest = write_synthetic_audio_manifest(tmp_path)
     config = ExperimentConfig(

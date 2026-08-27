@@ -1,7 +1,11 @@
 import numpy as np
 import pytest
 
-from aranya_ml.evaluation.multilabel import evaluate_multilabel, select_f2_thresholds
+from aranya_ml.evaluation.multilabel import (
+    evaluate_multilabel,
+    select_f1_thresholds,
+    select_f2_thresholds,
+)
 
 
 def test_threshold_selection_uses_each_target_independently() -> None:
@@ -11,6 +15,15 @@ def test_threshold_selection_uses_each_target_independently() -> None:
     thresholds = select_f2_thresholds(truth, scores, grid=(0.5, 0.75))
 
     assert thresholds.tolist() == [0.5, 0.5]
+
+
+def test_f1_threshold_selection_is_available_for_f1_reporting() -> None:
+    truth = np.array([[1], [1], [0], [0]])
+    scores = np.array([[0.9], [0.4], [0.3], [0.2]])
+
+    thresholds = select_f1_thresholds(truth, scores, grid=(0.3, 0.5, 0.8))
+
+    assert thresholds.tolist() == [0.3]
 
 
 def test_threshold_selection_rejects_target_without_positives() -> None:
